@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
+import { Show, UserButton } from "@clerk/nextjs";
 
 const PlasmaWave = dynamic(
   () => import("@/components/PlasmaWave/PlasmaWave"),
@@ -27,11 +29,11 @@ export default function Home() {
       <header className="fixed top-5 inset-x-0 mx-auto z-50 w-[92%] max-w-4xl transition-all">
         <div className="rounded-full bg-[#0c0e14]/80 backdrop-blur-xl border border-white/[0.08] shadow-xl shadow-black/50 px-5 sm:px-6 h-12 flex items-center justify-between">
           {/* Brand Logo */}
-          <a href="#" className="flex items-center gap-1.5 group">
+          <Link href="/" className="flex items-center gap-1.5 group">
             <span className="font-semibold text-base tracking-tight text-white flex items-center group-hover:text-[#ff9e4f] transition-colors">
               crackr<span className="text-[#ff9e4f] ml-0.5">•</span>
             </span>
-          </a>
+          </Link>
 
           {/* Desktop Navigation Links */}
           <nav className="hidden md:flex items-center gap-8 text-xs sm:text-sm text-zinc-400 font-normal">
@@ -57,19 +59,30 @@ export default function Home() {
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-4">
-            <a
-              href="#login"
-              className="text-xs sm:text-sm text-zinc-400 hover:text-white transition-colors"
-            >
-              Log in
-            </a>
-            <a
-              href="#get-started"
-              className="inline-flex items-center justify-center gap-1 text-xs sm:text-sm font-medium px-4 py-1.5 rounded-full bg-[#ff9e4f] text-[#080a0e] hover:bg-[#ffaa66] transition-all"
-            >
-              <span>Get started</span>
-              <span className="text-xs">→</span>
-            </a>
+            <Show when="signed-out">
+              <Link
+                href="/sign-in"
+                className="text-xs sm:text-sm text-zinc-400 hover:text-white transition-colors"
+              >
+                Log in
+              </Link>
+              <Link
+                href="/sign-up"
+                className="inline-flex items-center justify-center gap-1 text-xs sm:text-sm font-medium px-4 py-1.5 rounded-full bg-[#ff9e4f] text-[#080a0e] hover:bg-[#ffaa66] transition-all"
+              >
+                <span>Get started</span>
+                <span className="text-xs">→</span>
+              </Link>
+            </Show>
+            <Show when="signed-in">
+              <Link
+                href="/onboarding"
+                className="text-xs text-zinc-400 hover:text-white transition-colors"
+              >
+                Profile / Setup
+              </Link>
+              <UserButton />
+            </Show>
           </div>
 
           {/* Mobile Menu Button */}
@@ -128,18 +141,29 @@ export default function Home() {
               Features
             </a>
             <div className="pt-3 border-t border-white/[0.08] flex items-center justify-between">
-              <a
-                href="#login"
-                className="text-sm text-zinc-400 hover:text-white"
-              >
-                Log in
-              </a>
-              <a
-                href="#get-started"
-                className="text-xs font-semibold py-1.5 px-4 rounded-full bg-[#ff9e4f] text-[#080a0e]"
-              >
-                Get started →
-              </a>
+              <Show when="signed-out">
+                <Link
+                  href="/sign-in"
+                  className="text-sm text-zinc-400 hover:text-white"
+                >
+                  Log in
+                </Link>
+                <Link
+                  href="/sign-up"
+                  className="text-xs font-semibold py-1.5 px-4 rounded-full bg-[#ff9e4f] text-[#080a0e]"
+                >
+                  Get started →
+                </Link>
+              </Show>
+              <Show when="signed-in">
+                <Link
+                  href="/onboarding"
+                  className="text-xs text-zinc-400 hover:text-white"
+                >
+                  Profile / Setup
+                </Link>
+                <UserButton />
+              </Show>
             </div>
           </div>
         )}
@@ -180,13 +204,13 @@ export default function Home() {
 
             {/* Action CTAs */}
             <div className="mt-10 flex flex-col sm:flex-row items-center gap-3">
-              <a
-                href="#get-started"
+              <Link
+                href="/sign-up"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-6 py-3 rounded-full bg-[#ff9e4f] hover:bg-[#ffaa66] text-[#080a0e] font-semibold text-sm shadow-[0_4px_24px_rgba(255,158,79,0.35)] transition-all"
               >
                 <span>Start practicing</span>
                 <span className="text-sm">→</span>
-              </a>
+              </Link>
               <a
                 href="#how-it-works"
                 className="w-full sm:w-auto inline-flex items-center justify-center px-5 py-3 rounded-full bg-[#12161f]/80 hover:bg-[#181d28] border border-white/[0.08] text-zinc-300 hover:text-white text-sm font-medium transition-all"
