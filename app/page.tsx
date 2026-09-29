@@ -196,9 +196,9 @@ export default function Home() {
             {/* Headline */}
             <h1 className="text-5xl sm:text-7xl md:text-8xl font-black tracking-tight text-white leading-[1.04]">
               Practice smarter. <br />
-              Crack{" "}
+              Get better.{" "}
               <span className="bg-gradient-to-r from-[#ff9e4f] via-[#16cfd9] to-[#54e17f] bg-clip-text text-transparent">
-                more.
+                Faster.
               </span>
             </h1>
 

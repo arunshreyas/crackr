@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Crackr — Practice smarter. Crack more.',
+  title: 'Crackr — Practice smarter. Get better. Faster.',
   description: 'AI-assisted adaptive practice engine for JEE, NEET, and competitive exams.',
 }
 
