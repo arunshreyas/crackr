@@ -11,3 +11,40 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+
+
+model UserProfile {
+  id        String @id @default(cuid())
+  clerkId   String @unique @db.VarChar(255)
+
+  // Basic profile
+  email     String @db.VarChar(255)
+  name      String @db.VarChar(255)
+  username  String @unique @db.VarChar(255)
+
+  // Education
+  school    String @db.VarChar(255)
+  grade     String @db.VarChar(50)
+  exam      String? @db.VarChar(100)
+  stream  Stream
+  onboardingCompleted Boolean @default(false)
+  preferredDifficulty String? @db.VarChar(50)
+  dailyGoal           Int     @default(10)
+  xp             Int @default(0)
+  level          Int @default(1)
+  currentStreak  Int @default(0)
+  longestStreak  Int @default(0)
+  questionsAnswered Int @default(0)
+  questionsCorrect  Int @default(0)
+  lastPracticeAt DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+enum Stream{
+  PCM
+  PCMC
+  PCB
+  PCMB
+} 
