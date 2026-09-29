@@ -28,36 +28,19 @@ export default function Home() {
       <div className="absolute top-[1400px] right-0 w-[500px] h-[500px] bg-[#16cfd9]/5 blur-[130px] pointer-events-none -z-10" />
       <div className="absolute top-[2200px] left-0 w-[500px] h-[500px] bg-[#54e17f]/5 blur-[130px] pointer-events-none -z-10" />
 
-      {/* Navigation Bar */}
-      <header className="sticky top-0 z-50 w-full backdrop-blur-md bg-[#080a0e]/85 border-b border-[#1e2535]/80 transition-all">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      {/* Floating Oval Navbar */}
+      <header className="fixed top-4 sm:top-6 inset-x-0 mx-auto z-50 w-[92%] max-w-4xl transition-all">
+        <div className="rounded-full bg-[#0d1118]/85 backdrop-blur-xl border border-[#1e2535]/90 shadow-2xl shadow-black/60 px-4 sm:px-6 h-14 flex items-center justify-between gap-4 sm:gap-8">
           {/* Brand Logo */}
-          <a href="#" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#ff9e4f] to-[#16cfd9] p-0.5 flex items-center justify-center shadow-lg shadow-[#ff9e4f]/25 group-hover:shadow-[#ff9e4f]/45 transition-all">
-              <div className="w-full h-full bg-[#080a0e] rounded-[6px] flex items-center justify-center">
-                <svg
-                  className="w-4 h-4 text-[#ff9e4f]"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="m13 2-2 2.5h3L11 8" />
-                  <path d="M12 22v-6" />
-                  <path d="M8 8H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-3" />
-                </svg>
-              </div>
-            </div>
-            <span className="font-bold text-lg tracking-tight text-white flex items-center">
+          <a href="#" className="flex items-center group">
+            <span className="font-extrabold text-lg sm:text-xl tracking-tight text-white flex items-center group-hover:text-[#ff9e4f] transition-colors">
               crackr
               <span className="w-1.5 h-1.5 rounded-full bg-[#ff9e4f] ml-1 animate-pulse" />
             </span>
           </a>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
+          <nav className="hidden md:flex items-center gap-7 text-xs sm:text-sm font-medium text-slate-300">
             <a
               href="#practice"
               className="hover:text-white transition-colors duration-150"
@@ -79,20 +62,20 @@ export default function Home() {
           </nav>
 
           {/* Desktop Actions */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-3">
             <a
               href="#login"
-              className="text-sm font-medium text-slate-300 hover:text-white transition-colors px-3 py-1.5"
+              className="text-xs sm:text-sm font-medium text-slate-300 hover:text-white transition-colors px-2.5 py-1"
             >
               Log in
             </a>
             <a
               href="#get-started"
-              className="inline-flex items-center justify-center gap-1.5 text-sm font-bold px-4 py-2 rounded-lg bg-[#ff9e4f] text-[#080a0e] hover:bg-[#ffaa66] shadow-md shadow-[#ff9e4f]/25 hover:shadow-[#ff9e4f]/40 hover:-translate-y-0.5 active:translate-y-0 transition-all"
+              className="inline-flex items-center justify-center gap-1 text-xs sm:text-sm font-bold px-4 py-1.5 rounded-full bg-[#ff9e4f] text-[#080a0e] hover:bg-[#ffaa66] shadow-md shadow-[#ff9e4f]/25 hover:shadow-[#ff9e4f]/40 hover:-translate-y-0.5 active:translate-y-0 transition-all"
             >
               <span>Get started</span>
               <svg
-                className="w-3.5 h-3.5"
+                className="w-3 h-3"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -108,11 +91,11 @@ export default function Home() {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 text-slate-400 hover:text-white rounded-lg focus:outline-none"
+            className="md:hidden p-1.5 text-slate-400 hover:text-white rounded-full focus:outline-none"
             aria-label="Toggle Menu"
           >
             <svg
-              className="w-6 h-6"
+              className="w-5 h-5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -138,38 +121,38 @@ export default function Home() {
 
         {/* Mobile Dropdown */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-b border-[#1e2535] bg-[#080a0e]/95 backdrop-blur-xl px-4 pt-2 pb-6 space-y-3">
+          <div className="md:hidden mt-2 rounded-2xl border border-[#1e2535] bg-[#0d1118]/95 backdrop-blur-xl px-5 py-4 space-y-3 shadow-2xl">
             <a
               href="#practice"
               onClick={() => setMobileMenuOpen(false)}
-              className="block text-sm font-medium text-slate-300 hover:text-white py-2"
+              className="block text-sm font-medium text-slate-300 hover:text-white py-1.5"
             >
               Practice
             </a>
             <a
               href="#how-it-works"
               onClick={() => setMobileMenuOpen(false)}
-              className="block text-sm font-medium text-slate-300 hover:text-white py-2"
+              className="block text-sm font-medium text-slate-300 hover:text-white py-1.5"
             >
               How it works
             </a>
             <a
               href="#features"
               onClick={() => setMobileMenuOpen(false)}
-              className="block text-sm font-medium text-slate-300 hover:text-white py-2"
+              className="block text-sm font-medium text-slate-300 hover:text-white py-1.5"
             >
               Features
             </a>
-            <div className="pt-3 border-t border-[#1e2535] flex flex-col gap-2.5">
+            <div className="pt-2.5 border-t border-[#1e2535] flex flex-col gap-2">
               <a
                 href="#login"
-                className="text-center text-sm font-medium text-slate-300 hover:text-white py-2"
+                className="text-center text-sm font-medium text-slate-300 hover:text-white py-1.5"
               >
                 Log in
               </a>
               <a
                 href="#get-started"
-                className="text-center text-sm font-bold py-2.5 px-4 rounded-lg bg-[#ff9e4f] text-[#080a0e]"
+                className="text-center text-sm font-bold py-2 px-4 rounded-full bg-[#ff9e4f] text-[#080a0e]"
               >
                 Get started →
               </a>
@@ -179,9 +162,9 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col pt-24 sm:pt-28">
         {/* HERO SECTION */}
-        <section className="relative pt-16 sm:pt-24 pb-20 px-4 sm:px-6 lg:px-8 text-center flex flex-col items-center isolate overflow-hidden">
+        <section className="relative pt-12 sm:pt-16 pb-20 px-4 sm:px-6 lg:px-8 text-center flex flex-col items-center isolate overflow-hidden">
           {/* Animated WebGL PlasmaWave Background */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-6xl h-[650px] overflow-hidden pointer-events-none z-0">
             <PlasmaWave
@@ -202,31 +185,23 @@ export default function Home() {
 
           {/* Foreground Hero Content */}
           <div className="relative z-10 flex flex-col items-center w-full">
-            {/* Top Announcement Pill */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#141924]/90 backdrop-blur-md border border-[#ff9e4f]/40 text-xs text-[#fff9d9] mb-8 shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-[#ff9e4f] animate-ping" />
-              <span className="font-mono font-medium tracking-wide">
-                Practice engine 2.0 · Built for serious problem solvers
-              </span>
-            </div>
-
             {/* Hero Headline with High-Contrast Legibility */}
-            <div className="relative mb-10">
+            <div className="relative mb-10 mt-2 sm:mt-4">
               <div className="absolute -inset-x-8 -inset-y-4 bg-[#080a0e]/60 blur-2xl rounded-3xl -z-10 pointer-events-none" />
               <h1 className="max-w-4xl text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight text-white leading-[1.08] drop-shadow-[0_4px_30px_rgba(0,0,0,0.9)]">
                 Practice smarter. <br />
-                Crack{" "}
+                Get better.{" "}
                 <span className="bg-gradient-to-r from-[#ff9e4f] via-[#16cfd9] to-[#54e17f] bg-clip-text text-transparent">
-                  more.
+                  Faster.
                 </span>
               </h1>
             </div>
 
             {/* Action CTAs */}
-            <div className="flex flex-col sm:flex-row items-center gap-4 mb-12">
+            <div className="flex flex-col sm:flex-row items-center gap-4 mb-4">
               <a
                 href="#get-started"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-lg bg-[#ff9e4f] hover:bg-[#ffaa66] text-[#080a0e] font-bold text-sm shadow-xl shadow-[#ff9e4f]/30 hover:shadow-[#ff9e4f]/45 hover:-translate-y-0.5 active:translate-y-0 transition-all"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-[#ff9e4f] hover:bg-[#ffaa66] text-[#080a0e] font-bold text-sm shadow-xl shadow-[#ff9e4f]/30 hover:shadow-[#ff9e4f]/45 hover:-translate-y-0.5 active:translate-y-0 transition-all"
               >
                 <span>Start practicing</span>
                 <svg
@@ -244,30 +219,10 @@ export default function Home() {
               </a>
               <a
                 href="#how-it-works"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg bg-[#0d1118]/90 hover:bg-[#131926] border border-[#1e2535] hover:border-slate-700 text-slate-300 hover:text-white font-medium text-sm transition-all backdrop-blur-sm"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-[#0d1118]/90 hover:bg-[#131926] border border-[#1e2535] hover:border-slate-700 text-slate-300 hover:text-white font-medium text-sm transition-all backdrop-blur-sm"
               >
                 See how it works
               </a>
-            </div>
-
-            {/* Social Proof Trust Badge */}
-            <div className="inline-flex items-center gap-2 text-xs sm:text-sm text-slate-400 font-medium">
-              <svg
-                className="w-4 h-4 text-[#16cfd9] shrink-0"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
-                <path d="m9 12 2 2 4-4" />
-              </svg>
-              <span>
-                Trusted by 20,000+ candidates targeting top percentiles in IIT
-                JEE, NEET, and competitive exams
-              </span>
             </div>
           </div>
 
