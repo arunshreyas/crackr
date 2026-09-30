@@ -69,7 +69,7 @@ export function OnboardingForm({
       });
 
       if (res.success) {
-        router.push('/');
+        router.push('/dashboard');
         router.refresh();
       } else {
         setError(res.error || 'Failed to save profile. Please check your inputs.');

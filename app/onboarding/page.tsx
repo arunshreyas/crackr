@@ -19,7 +19,7 @@ export default async function OnboardingPage() {
   });
 
   if (existingProfile?.onboardingCompleted) {
-    redirect('/');
+    redirect('/dashboard');
   }
 
   const initialEmail = user.emailAddresses?.[0]?.emailAddress || '';
