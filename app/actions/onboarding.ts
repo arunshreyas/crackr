@@ -1,7 +1,7 @@
 'use server';
 
 import { currentUser } from '@clerk/nextjs/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/server/db';
 import { Stream } from '@prisma/client';
 
 export type OnboardingInput = {

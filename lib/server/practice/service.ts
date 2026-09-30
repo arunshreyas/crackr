@@ -9,7 +9,7 @@ import {
   checkAndUnlockAchievements,
   UnlockedAchievementInfo,
 } from '@/lib/server/gamification/service';
-import { XP_CONFIG } from '@/lib/server/gamification/config';
+import { XP_CONFIG, calculateLevel } from '@/lib/server/gamification/config';
 
 export interface StartPracticeResult {
   sessionId: string;
@@ -200,35 +200,98 @@ export async function submitPracticeAnswer(params: {
   const xpAmount =
     XP_CONFIG.QUESTION_ANSWERED + (isCorrect ? XP_CONFIG.QUESTION_CORRECT_BONUS : 0);
 
-  // 5. Store answer and update user counters
-  await prisma.quizAnswer.create({
-    data: {
-      sessionId,
-      userId: profile.id,
-      questionId,
-      selectedOption,
-      isCorrect,
-      timeTakenSeconds,
-    },
+  const now = new Date();
+
+  // 5. Execute answer recording, XP award, streak update, and user profile updates atomically
+  const { newTotalXp, newLevel, leveledUp, streak } = await prisma.$transaction(async (tx) => {
+    // 5a. Record quiz answer
+    await tx.quizAnswer.create({
+      data: {
+        sessionId,
+        userId: profile.id,
+        questionId,
+        selectedOption,
+        isCorrect,
+        timeTakenSeconds,
+      },
+    });
+
+    // 5b. Fetch current profile state inside transaction
+    const currentProfile = await tx.userProfile.findUniqueOrThrow({
+      where: { id: profile.id },
+      select: {
+        xp: true,
+        level: true,
+        currentStreak: true,
+        longestStreak: true,
+        lastPracticeAt: true,
+        questionsAnswered: true,
+        questionsCorrect: true,
+      },
+    });
+
+    // 5c. Calculate XP & Level progression
+    const totalXp = currentProfile.xp + xpAmount;
+    const { level: calculatedLevel } = calculateLevel(totalXp);
+    const didLevelUp = calculatedLevel > currentProfile.level;
+
+    // 5d. Calculate Streak
+    let currentStreak = currentProfile.currentStreak;
+    let longestStreak = currentProfile.longestStreak;
+
+    if (!currentProfile.lastPracticeAt) {
+      currentStreak = 1;
+    } else {
+      const lastDate = new Date(currentProfile.lastPracticeAt);
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startOfLast = new Date(lastDate.getFullYear(), lastDate.getMonth(), lastDate.getDate());
+
+      const diffDays = Math.round(
+        (startOfToday.getTime() - startOfLast.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      if (diffDays === 0) {
+        // Already practiced today, keep current streak
+      } else if (diffDays === 1) {
+        currentStreak += 1;
+      } else {
+        currentStreak = 1;
+      }
+    }
+
+    longestStreak = Math.max(longestStreak, currentStreak);
+
+    // 5e. Record XP Transaction audit log
+    await tx.xPTransaction.create({
+      data: {
+        userId: profile.id,
+        amount: xpAmount,
+        reason: isCorrect ? 'QUESTION_CORRECT' : 'QUESTION_ATTEMPT',
+        sessionId,
+      },
+    });
+
+    // 5f. Update UserProfile with new stats, level, xp, and streak
+    await tx.userProfile.update({
+      where: { id: profile.id },
+      data: {
+        questionsAnswered: currentProfile.questionsAnswered + 1,
+        questionsCorrect: isCorrect ? currentProfile.questionsCorrect + 1 : currentProfile.questionsCorrect,
+        xp: totalXp,
+        level: calculatedLevel,
+        currentStreak,
+        longestStreak,
+        lastPracticeAt: now,
+      },
+    });
+
+    return {
+      newTotalXp: totalXp,
+      newLevel: calculatedLevel,
+      leveledUp: didLevelUp,
+      streak: currentStreak,
+    };
   });
-
-  await prisma.userProfile.update({
-    where: { id: profile.id },
-    data: {
-      questionsAnswered: { increment: 1 },
-      questionsCorrect: isCorrect ? { increment: 1 } : undefined,
-    },
-  });
-
-  // 6. Award XP and update streak
-  const xpResult = await awardXp(
-    profile.id,
-    xpAmount,
-    isCorrect ? 'QUESTION_CORRECT' : 'QUESTION_ATTEMPT',
-    sessionId
-  );
-
-  const streak = await updateStreakOnPractice(profile.id);
 
   return {
     isCorrect,
@@ -238,9 +301,9 @@ export async function submitPracticeAnswer(params: {
     chapter: question.chapter,
     subject: question.subject,
     xpEarned: xpAmount,
-    newTotalXp: xpResult.newTotalXp,
-    newLevel: xpResult.newLevel,
-    leveledUp: xpResult.leveledUp,
+    newTotalXp,
+    newLevel,
+    leveledUp,
     streak,
   };
 }

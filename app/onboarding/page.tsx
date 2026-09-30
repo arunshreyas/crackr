@@ -1,6 +1,6 @@
 import { currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/server/db';
 import { OnboardingForm } from './OnboardingForm';
 import Link from 'next/link';
 

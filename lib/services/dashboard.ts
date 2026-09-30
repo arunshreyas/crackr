@@ -1,4 +1,5 @@
-import { prisma } from '@/lib/prisma';
+import 'server-only';
+import { prisma } from '@/lib/server/db';
 import { QuestionSubject } from '@prisma/client';
 import { calculateLevel, calculateRank } from '@/lib/server/gamification/config';
 

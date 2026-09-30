@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useClerk } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { AppSidebar } from '@/components/dashboard/AppSidebar';
-import { updateSettingsAction } from '@/app/actions/settings';
+import { updateSettingsAction, deleteAccountAction } from '@/app/actions/settings';
 import { Stream } from '@prisma/client';
 import {
   Settings as SettingsIcon,
@@ -16,6 +16,7 @@ import {
   AlertCircle,
   Save,
   Flame,
+  Trash2,
 } from 'lucide-react';
 
 interface SettingsProfile {
@@ -47,6 +48,9 @@ export function SettingsClient({ initialProfile }: SettingsClientProps) {
   );
 
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -57,6 +61,19 @@ export function SettingsClient({ initialProfile }: SettingsClientProps) {
     { count: 75, label: '75 Qs', desc: 'Intensive (~2.5 hrs/day)' },
     { count: 100, label: '100 Qs', desc: 'Cracker Rank (~3+ hrs/day)' },
   ];
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    setErrorMessage(null);
+
+    const res = await deleteAccountAction(deleteConfirmation);
+    if (res.success) {
+      await signOut({ redirectUrl: '/' });
+    } else {
+      setDeleting(false);
+      setErrorMessage(res.error || 'Failed to delete account.');
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -291,7 +308,7 @@ export function SettingsClient({ initialProfile }: SettingsClientProps) {
                 <button
                   type="button"
                   onClick={() => signOut({ redirectUrl: '/' })}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs font-semibold transition-all"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.08] text-xs font-semibold transition-all"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   <span>Sign Out</span>
@@ -306,6 +323,66 @@ export function SettingsClient({ initialProfile }: SettingsClientProps) {
                   <span>{saving ? 'Saving changes...' : 'Save Settings'}</span>
                 </button>
               </div>
+            </section>
+
+            {/* 5. Danger Zone / Account Deletion */}
+            <section className="bg-[#0C0E14] border border-rose-500/20 rounded-2xl p-6 sm:p-7 space-y-4">
+              <div>
+                <h2 className="text-base font-semibold text-rose-400 flex items-center gap-2">
+                  <Trash2 className="w-4 h-4" />
+                  Danger Zone
+                </h2>
+                <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                  Permanently delete your Crackr account, study sessions, question answer history, XP, and rank progress. This action cannot be undone.
+                </p>
+              </div>
+
+              {showDeleteConfirm ? (
+                <div className="p-4 rounded-xl bg-rose-500/5 border border-rose-500/30 space-y-3">
+                  <p className="text-xs text-rose-300 font-medium">
+                    To confirm deletion, please type <strong className="text-white">&quot;DELETE MY ACCOUNT&quot;</strong> below:
+                  </p>
+                  <input
+                    type="text"
+                    value={deleteConfirmation}
+                    onChange={(e) => setDeleteConfirmation(e.target.value)}
+                    placeholder="DELETE MY ACCOUNT"
+                    className="w-full bg-[#080A0E] border border-rose-500/40 rounded-xl px-4 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-rose-500"
+                  />
+                  <div className="flex items-center gap-3 pt-1">
+                    <button
+                      type="button"
+                      disabled={deleting || deleteConfirmation.trim().toLowerCase() !== 'delete my account'}
+                      onClick={handleDeleteAccount}
+                      className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white text-xs font-semibold transition-all"
+                    >
+                      {deleting ? 'Deleting account...' : 'Permanently Delete Account'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={deleting}
+                      onClick={() => {
+                        setShowDeleteConfirm(false);
+                        setDeleteConfirmation('');
+                      }}
+                      className="px-4 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 text-xs font-medium transition-all"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs font-semibold transition-all"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete Account</span>
+                  </button>
+                </div>
+              )}
             </section>
           </form>
         </main>

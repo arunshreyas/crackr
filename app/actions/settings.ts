@@ -4,6 +4,7 @@ import { requireAuthenticatedUser } from '@/lib/server/auth';
 import { prisma } from '@/lib/server/db';
 import { Stream } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
+import { clerkClient } from '@clerk/nextjs/server';
 
 export interface UpdateSettingsInput {
   name: string;
@@ -62,6 +63,40 @@ export async function updateSettingsAction(data: UpdateSettingsInput) {
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to update settings.',
+    };
+  }
+}
+
+export async function deleteAccountAction(confirmationText: string) {
+  try {
+    const auth = await requireAuthenticatedUser();
+
+    if (confirmationText.trim().toLowerCase() !== 'delete my account') {
+      return { success: false, error: 'Please type "DELETE MY ACCOUNT" to confirm.' };
+    }
+
+    const userId = auth.profile.id;
+    const clerkId = auth.clerkId;
+
+    // 1. Delete user from PostgreSQL via Prisma (Cascades delete sessions, answers, xpTransactions, achievements)
+    await prisma.userProfile.delete({
+      where: { id: userId },
+    });
+
+    // 2. Delete user from Clerk authentication provider
+    try {
+      const client = await clerkClient();
+      await client.users.deleteUser(clerkId);
+    } catch (clerkErr) {
+      console.warn('Could not delete Clerk user account record:', clerkErr);
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting account:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to delete account.',
     };
   }
 }

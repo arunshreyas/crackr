@@ -1,4 +1,5 @@
-import { prisma } from '@/lib/prisma';
+import 'server-only';
+import { prisma } from '@/lib/server/db';
 import { QuestionSubject, OptionLabel } from '@prisma/client';
 
 export interface PracticeQuestionFilter {
