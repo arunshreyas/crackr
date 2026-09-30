@@ -10,17 +10,85 @@ interface MathRendererProps {
 }
 
 /**
- * Pre-processes text to normalize JEE math notations, delimiters, and HTML tags.
+ * Replaces Plain-TeX \buildrel {label} \over \longrightarrow macros with proper LaTeX \xrightarrow{label}.
+ */
+function replaceBuildrel(latex: string): string {
+  let result = latex;
+  while (true) {
+    const idx = result.indexOf('\\buildrel');
+    if (idx === -1) break;
+
+    const overIdx = result.indexOf('\\over', idx);
+    if (overIdx === -1) break;
+
+    const topPart = result.slice(idx + 9, overIdx).trim();
+    const afterOver = result.slice(overIdx + 5).trimStart();
+    let target = '';
+    let targetEnd = 0;
+
+    if (afterOver.startsWith('\\longrightarrow')) {
+      target = '\\longrightarrow';
+      targetEnd = 15;
+    } else if (afterOver.startsWith('\\rightarrow')) {
+      target = '\\rightarrow';
+      targetEnd = 11;
+    } else if (afterOver.startsWith('\\longleftarrow')) {
+      target = '\\longleftarrow';
+      targetEnd = 14;
+    } else if (afterOver.startsWith('\\leftarrow')) {
+      target = '\\leftarrow';
+      targetEnd = 10;
+    } else if (afterOver.startsWith('=')) {
+      target = '=';
+      targetEnd = 1;
+    } else {
+      const match = afterOver.match(/^(\\[a-zA-Z]+|\S+)/);
+      if (match) {
+        target = match[0];
+        targetEnd = match[0].length;
+      }
+    }
+
+    let cleanedTop = topPart;
+    if (cleanedTop.startsWith('{') && cleanedTop.endsWith('}')) {
+      cleanedTop = cleanedTop.slice(1, -1);
+    }
+
+    let replacement = '';
+    if (target.includes('rightarrow')) {
+      replacement = `\\xrightarrow{${cleanedTop}}`;
+    } else if (target.includes('leftarrow')) {
+      replacement = `\\xleftarrow{${cleanedTop}}`;
+    } else {
+      replacement = `\\stackrel{${cleanedTop}}{${target}}`;
+    }
+
+    const before = result.slice(0, idx);
+    const after = afterOver.slice(targetEnd);
+    result = before + replacement + after;
+  }
+  return result;
+}
+
+/**
+ * Pre-processes LaTeX to normalize TeX macros, operators, and formatting.
  */
 function cleanLatex(latex: string): string {
   let cleaned = latex.trim();
 
-  // Fix common JEE PYQ LaTeX oddities
+  // Fix standalone minus
   if (cleaned === '-' || cleaned === '$$ - $$' || cleaned === '$$-$$') {
     return '-';
   }
 
-  // Normalize common math operators & symbols
+  // Normalize Plain-TeX \buildrel reaction arrows
+  cleaned = replaceBuildrel(cleaned);
+
+  // Normalize TeX \mathop X \limits_{Y} -> \underset{Y}{X}
+  cleaned = cleaned.replace(/\\mathop\s*\{?([^}]+?)\}?\s*\\limits_\{([\s\S]*?)\}/gi, '\\underset{$2}{$1}');
+  cleaned = cleaned.replace(/\\mathop\s*(\S+)\s*\\limits_\{([\s\S]*?)\}/gi, '\\underset{$2}{$1}');
+
+  // Normalize common math comparison operators
   cleaned = cleaned.replace(/\\ne(?![a-zA-Z])/g, '\\neq ');
   cleaned = cleaned.replace(/\\ge(?![a-zA-Z])/g, '\\geq ');
   cleaned = cleaned.replace(/\\le(?![a-zA-Z])/g, '\\leq ');
@@ -123,14 +191,17 @@ function preprocessJeeTablesAndLists(raw: string): string {
     const currentBlock = blocks[i];
     const lines = currentBlock.split('\n').map((l) => l.trim()).filter(Boolean);
 
-    // If block has between 2 and 15 lines, check for adjacent columns of equal height
-    if (lines.length >= 2 && lines.length <= 15) {
+    // Only process lines that do NOT contain math token placeholders
+    const hasMathToken = lines.some((l) => l.includes('__MATH_TOKEN_'));
+
+    if (!hasMathToken && lines.length >= 2 && lines.length <= 15) {
       const candidateCols = [lines];
       let j = i + 1;
 
       while (j < blocks.length) {
         const nextLines = blocks[j].split('\n').map((l) => l.trim()).filter(Boolean);
-        if (nextLines.length === lines.length) {
+        const nextHasMath = nextLines.some((l) => l.includes('__MATH_TOKEN_'));
+        if (!nextHasMath && nextLines.length === lines.length) {
           candidateCols.push(nextLines);
           j++;
         } else {
@@ -138,7 +209,7 @@ function preprocessJeeTablesAndLists(raw: string): string {
         }
       }
 
-      // Found 2 or more columns of identical height -> Build structured table!
+      // Found 2 or more contiguous columns of identical height -> Build structured table!
       if (candidateCols.length >= 2) {
         const numRows = lines.length;
         const headers = candidateCols.map((col) => col[0]);
@@ -187,91 +258,68 @@ function preprocessJeeTablesAndLists(raw: string): string {
 export function formatJeeContent(raw: string): string {
   if (!raw) return '';
 
-  // 1. Reconstruct tables and clean legacy scraping styles
-  let text = preprocessJeeTablesAndLists(raw)
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/&nbsp;/gi, ' ');
-
-  // 2. Tokenize math blocks: $$...$$, $...$, \[...\], \(...\)
+  // 1. Mask Math Blocks into tokens first to protect TeX formulas from text splitting!
   const mathRegex = /(\$\$[\s\S]*?\$\$|\$[^\$\n]+?\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\))/g;
+  const mathTokens: Array<{ tokenId: string; rendered: string }> = [];
+  let tokenCounter = 0;
 
-  const parts: string[] = [];
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = mathRegex.exec(text)) !== null) {
-    const start = match.index;
-    const end = mathRegex.lastIndex;
-
-    // Push preceding text if any
-    if (start > lastIndex) {
-      parts.push(text.slice(lastIndex, start));
-    }
-
-    const token = match[0];
+  const textWithTokens = raw.replace(mathRegex, (match) => {
+    const tokenId = `__MATH_TOKEN_${tokenCounter++}__`;
     let isBlock = false;
     let mathContent = '';
 
-    if (token.startsWith('$$') && token.endsWith('$$')) {
+    if (match.startsWith('$$') && match.endsWith('$$')) {
       isBlock = false;
-      mathContent = token.slice(2, -2);
-    } else if (token.startsWith('$') && token.endsWith('$')) {
+      mathContent = match.slice(2, -2);
+    } else if (match.startsWith('$') && match.endsWith('$')) {
       isBlock = false;
-      mathContent = token.slice(1, -1);
-    } else if (token.startsWith('\\[') && token.endsWith('\\]')) {
+      mathContent = match.slice(1, -1);
+    } else if (match.startsWith('\\[') && match.endsWith('\\]')) {
       isBlock = true;
-      mathContent = token.slice(2, -2);
-    } else if (token.startsWith('\\(') && token.endsWith('\\)')) {
+      mathContent = match.slice(2, -2);
+    } else if (match.startsWith('\\(') && match.endsWith('\\)')) {
       isBlock = false;
-      mathContent = token.slice(2, -2);
+      mathContent = match.slice(2, -2);
     }
 
-    // Convert any embedded <sub>/<sup> inside math block into LaTeX _{} / ^{}
     mathContent = mathContent
       .replace(/<sub>(.*?)<\/sub>/gi, '_{$1}')
       .replace(/<sup>(.*?)<\/sup>/gi, '^{$1}');
 
-    const renderedMath = renderKatexToString(mathContent, isBlock);
-    parts.push(renderedMath);
-
-    lastIndex = end;
-  }
-
-  // Push remainder
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
-  }
-
-  // 3. Process remaining text chunks for standard tags (<sub>, <sup>, <b>, <i>, newlines)
-  const processed = parts.map((part) => {
-    // If it's already rendered KaTeX HTML or table wrapper, handle appropriately
-    if (part.startsWith('<span class="katex') || part.startsWith('<span class="katex-display')) {
-      return part;
-    }
-
-    // Process HTML formatting tags in text segments
-    let chunk = part
-      // Subscripts and superscripts
-      .replace(/<sub>(.*?)<\/sub>/gi, '<sub class="text-[0.75em] bottom-[-0.2em] relative">$1</sub>')
-      .replace(/<sup>(.*?)<\/sup>/gi, '<sup class="text-[0.75em] top-[-0.3em] relative">$1</sup>')
-      // Bold and italics
-      .replace(/<b>(.*?)<\/b>/gi, '<strong class="font-semibold text-white">$1</strong>')
-      .replace(/<strong>(.*?)<\/strong>/gi, '<strong class="font-semibold text-white">$1</strong>')
-      .replace(/<i>(.*?)<\/i>/gi, '<em class="italic">$1</em>')
-      .replace(/<em>(.*?)<\/em>/gi, '<em class="italic">$1</em>');
-
-    // If chunk contains HTML table markup, don't break table tags with <br />
-    if (chunk.includes('<table') || chunk.includes('<div class="my-4 overflow-x-auto')) {
-      return chunk;
-    }
-
-    // Otherwise apply paragraph and line breaks
-    return chunk
-      .replace(/\n\n/g, '<div class="h-2"></div>')
-      .replace(/\n/g, '<br />');
+    const rendered = renderKatexToString(mathContent, isBlock);
+    mathTokens.push({ tokenId, rendered });
+    return tokenId;
   });
 
-  return processed.join('');
+  // 2. Preprocess non-math text for tables & lists
+  const processedText = preprocessJeeTablesAndLists(textWithTokens)
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/&nbsp;/gi, ' ');
+
+  // 3. Format HTML tags in non-table text
+  let formatted = processedText
+    .replace(/<sub>(.*?)<\/sub>/gi, '<sub class="text-[0.75em] bottom-[-0.2em] relative">$1</sub>')
+    .replace(/<sup>(.*?)<\/sup>/gi, '<sup class="text-[0.75em] top-[-0.3em] relative">$1</sup>')
+    .replace(/<b>(.*?)<\/b>/gi, '<strong class="font-semibold text-white">$1</strong>')
+    .replace(/<strong>(.*?)<\/strong>/gi, '<strong class="font-semibold text-white">$1</strong>')
+    .replace(/<i>(.*?)<\/i>/gi, '<em class="italic">$1</em>')
+    .replace(/<em>(.*?)<\/em>/gi, '<em class="italic">$1</em>');
+
+  // Replace line breaks outside tables
+  const parts = formatted.split(/(<div class="my-4 overflow-x-auto[\s\S]*?<\/div>)/g);
+  const finalParts = parts.map((part) => {
+    if (part.startsWith('<div class="my-4 overflow-x-auto')) return part;
+    return part.replace(/\n\n/g, '<div class="h-2"></div>').replace(/\n/g, '<br />');
+  });
+
+  formatted = finalParts.join('');
+
+  // 4. Restore math tokens
+  for (const { tokenId, rendered } of mathTokens) {
+    formatted = formatted.replace(tokenId, rendered);
+  }
+
+  return formatted;
 }
 
 export function MathRenderer({ content, className = '', inline = false }: MathRendererProps) {
