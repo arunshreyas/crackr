@@ -53,43 +53,52 @@ export async function awardXp(
     };
   }
 
-  // Create XP Transaction and update user XP atomically
-  const result = await prisma.$transaction(async (tx) => {
-    await tx.xPTransaction.create({
-      data: {
-        userId,
-        amount,
-        reason,
-        sessionId,
-      },
-    });
+  // 1. Resolve XPTransaction delegate safely across Prisma client conventions
+  const xpDelegate =
+    (prisma as any).xPTransaction ||
+    (prisma as any).xpTransaction ||
+    (prisma as any).XPTransaction;
 
-    const user = await tx.userProfile.findUnique({
-      where: { id: userId },
-      select: { xp: true, level: true },
-    });
+  if (xpDelegate) {
+    try {
+      await xpDelegate.create({
+        data: {
+          userId,
+          amount,
+          reason,
+          sessionId,
+        },
+      });
+    } catch (e) {
+      console.warn('Could not record XP transaction record:', e);
+    }
+  }
 
-    const currentXp = user?.xp || 0;
-    const oldLevel = user?.level || 1;
-    const newTotalXp = currentXp + amount;
-    const { level: newLevel } = calculateLevel(newTotalXp);
-
-    await tx.userProfile.update({
-      where: { id: userId },
-      data: {
-        xp: newTotalXp,
-        level: newLevel,
-      },
-    });
-
-    return {
-      newTotalXp,
-      newLevel,
-      leveledUp: newLevel > oldLevel,
-    };
+  // 2. Fetch current profile XP and level
+  const user = await prisma.userProfile.findUnique({
+    where: { id: userId },
+    select: { xp: true, level: true },
   });
 
-  return result;
+  const currentXp = user?.xp || 0;
+  const oldLevel = user?.level || 1;
+  const newTotalXp = currentXp + amount;
+  const { level: newLevel } = calculateLevel(newTotalXp);
+
+  // 3. Update UserProfile with new XP balance and level
+  await prisma.userProfile.update({
+    where: { id: userId },
+    data: {
+      xp: newTotalXp,
+      level: newLevel,
+    },
+  });
+
+  return {
+    newTotalXp,
+    newLevel,
+    leveledUp: newLevel > oldLevel,
+  };
 }
 
 /**

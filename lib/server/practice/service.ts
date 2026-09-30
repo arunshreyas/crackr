@@ -200,26 +200,24 @@ export async function submitPracticeAnswer(params: {
   const xpAmount =
     XP_CONFIG.QUESTION_ANSWERED + (isCorrect ? XP_CONFIG.QUESTION_CORRECT_BONUS : 0);
 
-  // 5. Store answer and update counters atomically
-  await prisma.$transaction(async (tx) => {
-    await tx.quizAnswer.create({
-      data: {
-        sessionId,
-        userId: profile.id,
-        questionId,
-        selectedOption,
-        isCorrect,
-        timeTakenSeconds,
-      },
-    });
+  // 5. Store answer and update user counters
+  await prisma.quizAnswer.create({
+    data: {
+      sessionId,
+      userId: profile.id,
+      questionId,
+      selectedOption,
+      isCorrect,
+      timeTakenSeconds,
+    },
+  });
 
-    await tx.userProfile.update({
-      where: { id: profile.id },
-      data: {
-        questionsAnswered: { increment: 1 },
-        questionsCorrect: isCorrect ? { increment: 1 } : undefined,
-      },
-    });
+  await prisma.userProfile.update({
+    where: { id: profile.id },
+    data: {
+      questionsAnswered: { increment: 1 },
+      questionsCorrect: isCorrect ? { increment: 1 } : undefined,
+    },
   });
 
   // 6. Award XP and update streak
