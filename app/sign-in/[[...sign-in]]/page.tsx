@@ -25,6 +25,8 @@ export default function SignInPage() {
 
       {/* Clerk SignIn Component */}
       <SignIn
+        path="/sign-in"
+        routing="path"
         signUpUrl="/sign-up"
         fallbackRedirectUrl="/dashboard"
       />

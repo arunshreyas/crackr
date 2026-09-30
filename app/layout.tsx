@@ -29,6 +29,7 @@ export default function RootLayout({
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}>
       <body className="min-h-full flex flex-col bg-[#080a0e] text-zinc-100 font-sans selection:bg-[#ff9e4f]/30 selection:text-[#fff9d9]">
         <ClerkProvider
+          publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
           appearance={{
             ...dark,
             variables: {
