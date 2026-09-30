@@ -221,6 +221,112 @@ export function ProfileClient({ data }: ProfileClientProps) {
             </div>
           </section>
 
+          {/* 3. Competitive Rank Ladder */}
+          <section className="bg-[#0C0E14] border border-white/[0.08] rounded-2xl p-6 sm:p-8 space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold text-white tracking-tight flex items-center gap-2">
+                <Award className="w-5 h-5 text-[#FF9D50]" />
+                JEE Rank Ladder
+              </h3>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                Progress through 7 mastery tiers by solving questions and keeping consistency
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
+              {(gamification.allRanks || []).map((tier, idx) => {
+                const isCurrent = gamification.rankInfo.rank === tier.name;
+                const isUnlocked = gamification.xp >= tier.minXp;
+
+                return (
+                  <div
+                    key={tier.name}
+                    className={`rounded-xl p-4 border flex flex-col justify-between text-center transition-all ${
+                      isCurrent
+                        ? 'bg-[#FF9D50]/15 border-[#FF9D50] ring-1 ring-[#FF9D50]/30 shadow-lg'
+                        : isUnlocked
+                        ? 'bg-white/[0.03] border-white/[0.12]'
+                        : 'bg-white/[0.01] border-white/[0.04] opacity-50'
+                    }`}
+                  >
+                    <div className="space-y-2">
+                      <span className="text-3xl block">{tier.badge}</span>
+                      <div className="font-semibold text-xs text-white tracking-tight">
+                        {tier.name}
+                      </div>
+                      <div className="text-[10px] text-zinc-400 font-medium">
+                        Tier {idx + 1}
+                      </div>
+                    </div>
+
+                    <div className="mt-3 pt-2 border-t border-white/[0.06] text-[10px]">
+                      {isCurrent ? (
+                        <span className="text-[#FF9D50] font-bold">Current</span>
+                      ) : isUnlocked ? (
+                        <span className="text-[#50D97A] font-medium">Unlocked ✓</span>
+                      ) : (
+                        <span className="text-zinc-500 font-medium">{tier.minXp.toLocaleString()} XP</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* 4. Level Roadmap & Milestones */}
+          <section className="bg-[#0C0E14] border border-white/[0.08] rounded-2xl p-6 sm:p-8 space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold text-white tracking-tight flex items-center gap-2">
+                <Zap className="w-5 h-5 text-[#FFF9D8]" />
+                Level Progression Roadmap
+              </h3>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                Track your journey across 25 mastery levels. Each question and session propels you forward.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-5 md:grid-cols-7 lg:grid-cols-9 gap-2.5">
+              {(gamification.levelThresholds || []).slice(0, 25).map((threshold, index) => {
+                const lvl = index + 1;
+                const isCurrent = gamification.levelInfo.level === lvl;
+                const isPassed = gamification.levelInfo.level > lvl;
+
+                return (
+                  <div
+                    key={lvl}
+                    className={`rounded-xl p-3 border text-center transition-all flex flex-col justify-between ${
+                      isCurrent
+                        ? 'bg-[#FFF9D8]/10 border-[#FFF9D8] ring-1 ring-[#FFF9D8]/30 shadow-md'
+                        : isPassed
+                        ? 'bg-white/[0.03] border-white/[0.1]'
+                        : 'bg-white/[0.01] border-white/[0.04] opacity-40'
+                    }`}
+                  >
+                    <div>
+                      <span className="text-[10px] font-semibold text-zinc-400 block uppercase">
+                        Lv.{lvl}
+                      </span>
+                      <span className="text-xs font-bold text-white block mt-0.5">
+                        {threshold.toLocaleString()} XP
+                      </span>
+                    </div>
+
+                    <div className="mt-2 text-[9px]">
+                      {isCurrent ? (
+                        <span className="text-[#FFF9D8] font-bold">Active</span>
+                      ) : isPassed ? (
+                        <span className="text-[#50D97A] font-medium">Done</span>
+                      ) : (
+                        <span className="text-zinc-600">Locked</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
           {/* 3. Achievements Trophy Case */}
           <section className="bg-[#0C0E14] border border-white/[0.08] rounded-2xl p-6 sm:p-8 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import Link from 'next/link';
 import { DashboardData } from '@/lib/services/dashboard';
 
 interface SubjectPerformanceProps {
@@ -63,7 +64,7 @@ export function SubjectPerformance({ subjects }: SubjectPerformanceProps) {
         {sortedList.map((s) => (
           <div
             key={s.rawSubject}
-            className="rounded-xl bg-white/[0.01] border border-white/[0.06] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-[#FF9D50]/40 transition-colors"
+            className="rounded-xl bg-white/[0.01] border border-white/[0.06] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-white/[0.15] transition-colors"
           >
             <div className="space-y-1">
               <div className="flex items-center gap-2">
@@ -84,11 +85,17 @@ export function SubjectPerformance({ subjects }: SubjectPerformanceProps) {
                   />
                 </div>
               </div>
-              <div className="text-right min-w-[54px]">
+              <div className="text-right min-w-[48px]">
                 <span className="text-base font-bold text-white">
                   {s.accuracy !== null ? `${s.accuracy}%` : '—'}
                 </span>
               </div>
+              <Link
+                href={`/practice?subject=${s.rawSubject}`}
+                className="px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-[#FF9D50]/15 hover:text-[#FF9D50] border border-white/[0.08] hover:border-[#FF9D50]/30 text-xs font-semibold text-zinc-300 transition-all text-center"
+              >
+                Practice
+              </Link>
             </div>
           </div>
         ))}

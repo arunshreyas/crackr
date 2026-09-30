@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   BookOpen,
   TrendingUp,
+  Award,
   Settings,
   User,
 } from 'lucide-react';
@@ -45,6 +46,7 @@ export function AppSidebar() {
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/practice', label: 'Practice', icon: BookOpen },
     { href: '/progress', label: 'Progress', icon: TrendingUp },
+    { href: '/profile', label: 'Ranks & Levels', icon: Award },
   ];
 
   const secondaryNav = [
@@ -111,19 +113,10 @@ export function AppSidebar() {
               }`}
             >
               <Icon className={`w-4 h-4 ${isActive ? 'text-[#FF9D50]' : 'text-zinc-400'}`} />
-              <span>{item.label}</span>
+              <span>{item.label === 'Ranks & Levels' ? 'Ranks' : item.label}</span>
             </Link>
           );
         })}
-        <Link
-          href="/profile"
-          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-lg text-[10px] font-medium transition-colors ${
-            pathname === '/profile' ? 'text-[#FF9D50] font-semibold' : 'text-zinc-400 hover:text-[#FFF9D8]'
-          }`}
-        >
-          <User className={`w-4 h-4 ${pathname === '/profile' ? 'text-[#FF9D50]' : 'text-zinc-400'}`} />
-          <span>Profile</span>
-        </Link>
       </nav>
     </>
   );

@@ -29,6 +29,8 @@ export function DashboardClient({ data }: DashboardClientProps) {
           name={data.profile.name}
           grade={data.profile.grade}
           stream={data.profile.stream}
+          rankInfo={data.profile.rankInfo}
+          levelInfo={data.profile.levelInfo}
         />
 
         {/* Dashboard Body */}

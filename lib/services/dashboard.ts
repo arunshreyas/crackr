@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { QuestionSubject } from '@prisma/client';
+import { calculateLevel, calculateRank } from '@/lib/server/gamification/config';
 
 export interface DashboardData {
   profile: {
@@ -11,6 +12,19 @@ export interface DashboardData {
     dailyGoal: number;
     preferredDifficulty: string | null;
     level: number;
+    levelInfo: {
+      level: number;
+      currentLevelXp: number;
+      nextLevelXp: number;
+      progressPercentage: number;
+    };
+    rankInfo: {
+      rank: string;
+      badge: string;
+      tier: number;
+      nextRank: string | null;
+      xpToNextRank: number | null;
+    };
   };
   greeting: {
     headline: string;
@@ -394,6 +408,9 @@ export async function getDashboardData(clerkUserId: string): Promise<DashboardDa
     }
   }
 
+  const levelInfo = calculateLevel(profile.xp || 0);
+  const rankInfo = calculateRank(profile.xp || 0);
+
   return {
     profile: {
       name: profile.name,
@@ -404,6 +421,8 @@ export async function getDashboardData(clerkUserId: string): Promise<DashboardDa
       dailyGoal: profile.dailyGoal,
       preferredDifficulty: profile.preferredDifficulty,
       level: profile.level,
+      levelInfo,
+      rankInfo,
     },
     greeting: {
       headline: `${timeGreeting}, ${profile.name.split(' ')[0]}.`,

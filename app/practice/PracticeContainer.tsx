@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { QuestionSubject, OptionLabel } from '@prisma/client';
 import {
   SubjectCatalog,
@@ -45,13 +45,23 @@ export function PracticeContainer({
   preferredDifficulty,
 }: PracticeContainerProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const urlSubject = searchParams.get('subject')?.toUpperCase();
+  const initialSubject: QuestionSubject =
+    urlSubject === 'CHEMISTRY' || urlSubject === 'MATHEMATICS' || urlSubject === 'PHYSICS'
+      ? (urlSubject as QuestionSubject)
+      : 'PHYSICS';
+
+  const urlChapter = searchParams.get('chapter');
+  const initialChapter = urlChapter || 'ALL';
 
   // Screen state
   const [screenState, setScreenState] = useState<PracticeState>('CONFIG');
 
   // Config parameters
-  const [selectedSubject, setSelectedSubject] = useState<QuestionSubject>('PHYSICS');
-  const [selectedChapter, setSelectedChapter] = useState<string>('ALL');
+  const [selectedSubject, setSelectedSubject] = useState<QuestionSubject>(initialSubject);
+  const [selectedChapter, setSelectedChapter] = useState<string>(initialChapter);
   const initialDifficulty = (() => {
     if (!preferredDifficulty) return 'ALL';
     const u = preferredDifficulty.trim().toUpperCase();

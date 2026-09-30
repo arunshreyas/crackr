@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/server/db';
@@ -36,10 +37,12 @@ export default async function PracticePage() {
       {/* Practice Workstation Area */}
       <div className="flex-1 flex flex-col min-w-0 pb-20 md:pb-10">
         <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-8 py-8">
-          <PracticeContainer
-            catalog={catalog}
-            preferredDifficulty={profile.preferredDifficulty}
-          />
+          <Suspense fallback={<div className="p-8 text-center text-zinc-400 text-sm">Loading practice workstation...</div>}>
+            <PracticeContainer
+              catalog={catalog}
+              preferredDifficulty={profile.preferredDifficulty}
+            />
+          </Suspense>
         </main>
       </div>
     </div>

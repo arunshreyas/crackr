@@ -4,6 +4,9 @@ import {
   calculateLevel,
   calculateRank,
   V1_ACHIEVEMENTS,
+  RANKS,
+  LEVEL_THRESHOLDS,
+  RankTier,
 } from '@/lib/server/gamification/config';
 
 export interface ProfileAchievementItem {
@@ -52,6 +55,8 @@ export interface ProfileData {
       longestStreak: number;
       lastPracticeAt: string | null;
     };
+    allRanks: RankTier[];
+    levelThresholds: number[];
   };
   achievements: ProfileAchievementItem[];
   stats: {
@@ -134,6 +139,8 @@ export async function getProfileData(userId: string): Promise<ProfileData | null
         longestStreak: profile.longestStreak,
         lastPracticeAt: profile.lastPracticeAt ? profile.lastPracticeAt.toISOString() : null,
       },
+      allRanks: RANKS,
+      levelThresholds: LEVEL_THRESHOLDS,
     },
     achievements,
     stats: {
