@@ -23,15 +23,15 @@ function NavItem({ href, label, icon: Icon, isActive }: NavItemProps) {
   return (
     <Link
       href={href}
-      className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
+      className={`group flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
         isActive
-          ? 'bg-[#FF9D50]/10 text-[#FF9D50] font-semibold'
-          : 'text-zinc-400 hover:text-[#FFF9D8] hover:bg-white/[0.04]'
+          ? 'bg-[#2373F4]/10 text-[#2373F4] font-semibold'
+          : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03]'
       }`}
     >
       <Icon
         className={`w-4 h-4 transition-colors ${
-          isActive ? 'text-[#FF9D50]' : 'text-zinc-400 group-hover:text-[#FFF9D8]'
+          isActive ? 'text-[#2373F4]' : 'text-zinc-400 group-hover:text-zinc-200'
         }`}
       />
       <span>{label}</span>
@@ -61,14 +61,14 @@ export function AppSidebar() {
         <div className="space-y-8">
           {/* Brand Logo */}
           <Link href="/dashboard" className="flex items-center gap-1.5 px-3 py-1 group">
-            <span className="font-semibold text-lg tracking-tight text-white group-hover:text-[#FF9D50] transition-colors">
-              crackr<span className="text-[#FF9D50]">•</span>
+            <span className="font-semibold text-lg tracking-tight text-white group-hover:text-[#2373F4] transition-colors">
+              crackr<span className="text-[#2373F4]">•</span>
             </span>
           </Link>
 
           {/* Primary Navigation */}
           <nav className="space-y-1">
-            <div className="px-3 pb-2 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
+            <div className="px-3 pb-2 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
               Main
             </div>
             {mainNav.map((item) => (
@@ -109,10 +109,10 @@ export function AppSidebar() {
               key={item.href}
               href={item.href}
               className={`flex flex-col items-center gap-1 py-1 px-3 rounded-lg text-[10px] font-medium transition-colors ${
-                isActive ? 'text-[#FF9D50] font-semibold' : 'text-zinc-400 hover:text-[#FFF9D8]'
+                isActive ? 'text-[#2373F4] font-semibold' : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              <Icon className={`w-4 h-4 ${isActive ? 'text-[#FF9D50]' : 'text-zinc-400'}`} />
+              <Icon className={`w-4 h-4 ${isActive ? 'text-[#2373F4]' : 'text-zinc-400'}`} />
               <span>{item.label === 'Ranks & Levels' ? 'Ranks' : item.label}</span>
             </Link>
           );

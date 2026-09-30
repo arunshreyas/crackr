@@ -125,10 +125,46 @@ export async function submitPracticeAnswer(params: {
   const { profile } = await requireAuthenticatedUser();
   const { sessionId, questionId, selectedOption, timeTakenSeconds = 30 } = params;
 
-  // 1. Verify session ownership and active status
-  const session = await prisma.quizSession.findUnique({
-    where: { id: sessionId },
-  });
+  // 1, 2, 3: Fetch session, duplicate check, and question in parallel to minimize latency
+  const [session, existingAnswer, question] = await Promise.all([
+    prisma.quizSession.findUnique({
+      where: { id: sessionId },
+      select: {
+        id: true,
+        userId: true,
+        completedAt: true,
+      },
+    }),
+    prisma.quizAnswer.findFirst({
+      where: {
+        sessionId,
+        questionId,
+      },
+      include: {
+        question: {
+          select: {
+            id: true,
+            subject: true,
+            chapter: true,
+            topic: true,
+            correctOption: true,
+            explanation: true,
+          },
+        },
+      },
+    }),
+    prisma.question.findUnique({
+      where: { id: questionId },
+      select: {
+        id: true,
+        subject: true,
+        chapter: true,
+        topic: true,
+        correctOption: true,
+        explanation: true,
+      },
+    }),
+  ]);
 
   if (!session || session.userId !== profile.id) {
     throw new Error('FORBIDDEN: Session not found or unauthorized.');
@@ -138,26 +174,7 @@ export async function submitPracticeAnswer(params: {
     throw new Error('SESSION_COMPLETED: This session has already ended.');
   }
 
-  // 2. Prevent duplicate answer submission or return existing result idempotently
-  const existingAnswer = await prisma.quizAnswer.findFirst({
-    where: {
-      sessionId,
-      questionId,
-    },
-    include: {
-      question: {
-        select: {
-          id: true,
-          subject: true,
-          chapter: true,
-          topic: true,
-          correctOption: true,
-          explanation: true,
-        },
-      },
-    },
-  });
-
+  // Idempotent return if already answered
   if (existingAnswer && existingAnswer.question) {
     const isCorrect = existingAnswer.isCorrect;
     const xpAmount =
@@ -177,19 +194,6 @@ export async function submitPracticeAnswer(params: {
     };
   }
 
-  // 3. Fetch canonical question and evaluate correctness
-  const question = await prisma.question.findUnique({
-    where: { id: questionId },
-    select: {
-      id: true,
-      subject: true,
-      chapter: true,
-      topic: true,
-      correctOption: true,
-      explanation: true,
-    },
-  });
-
   if (!question) {
     throw new Error('QUESTION_NOT_FOUND: Question does not exist.');
   }
@@ -202,21 +206,9 @@ export async function submitPracticeAnswer(params: {
 
   const now = new Date();
 
-  // 5. Execute answer recording, XP award, streak update, and user profile updates atomically
+  // 5. Execute atomic transaction with concurrent writes
   const { newTotalXp, newLevel, leveledUp, streak } = await prisma.$transaction(async (tx) => {
-    // 5a. Record quiz answer
-    await tx.quizAnswer.create({
-      data: {
-        sessionId,
-        userId: profile.id,
-        questionId,
-        selectedOption,
-        isCorrect,
-        timeTakenSeconds,
-      },
-    });
-
-    // 5b. Fetch current profile state inside transaction
+    // Fetch fresh profile state
     const currentProfile = await tx.userProfile.findUniqueOrThrow({
       where: { id: profile.id },
       select: {
@@ -230,12 +222,11 @@ export async function submitPracticeAnswer(params: {
       },
     });
 
-    // 5c. Calculate XP & Level progression
     const totalXp = currentProfile.xp + xpAmount;
     const { level: calculatedLevel } = calculateLevel(totalXp);
     const didLevelUp = calculatedLevel > currentProfile.level;
 
-    // 5d. Calculate Streak
+    // Calculate Streak
     let currentStreak = currentProfile.currentStreak;
     let longestStreak = currentProfile.longestStreak;
 
@@ -261,29 +252,39 @@ export async function submitPracticeAnswer(params: {
 
     longestStreak = Math.max(longestStreak, currentStreak);
 
-    // 5e. Record XP Transaction audit log
-    await tx.xPTransaction.create({
-      data: {
-        userId: profile.id,
-        amount: xpAmount,
-        reason: isCorrect ? 'QUESTION_CORRECT' : 'QUESTION_ATTEMPT',
-        sessionId,
-      },
-    });
-
-    // 5f. Update UserProfile with new stats, level, xp, and streak
-    await tx.userProfile.update({
-      where: { id: profile.id },
-      data: {
-        questionsAnswered: currentProfile.questionsAnswered + 1,
-        questionsCorrect: isCorrect ? currentProfile.questionsCorrect + 1 : currentProfile.questionsCorrect,
-        xp: totalXp,
-        level: calculatedLevel,
-        currentStreak,
-        longestStreak,
-        lastPracticeAt: now,
-      },
-    });
+    // Parallelize writes inside transaction connection
+    await Promise.all([
+      tx.quizAnswer.create({
+        data: {
+          sessionId,
+          userId: profile.id,
+          questionId,
+          selectedOption,
+          isCorrect,
+          timeTakenSeconds,
+        },
+      }),
+      tx.xPTransaction.create({
+        data: {
+          userId: profile.id,
+          amount: xpAmount,
+          reason: isCorrect ? 'QUESTION_CORRECT' : 'QUESTION_ATTEMPT',
+          sessionId,
+        },
+      }),
+      tx.userProfile.update({
+        where: { id: profile.id },
+        data: {
+          questionsAnswered: currentProfile.questionsAnswered + 1,
+          questionsCorrect: isCorrect ? currentProfile.questionsCorrect + 1 : currentProfile.questionsCorrect,
+          xp: totalXp,
+          level: calculatedLevel,
+          currentStreak,
+          longestStreak,
+          lastPracticeAt: now,
+        },
+      }),
+    ]);
 
     return {
       newTotalXp: totalXp,
