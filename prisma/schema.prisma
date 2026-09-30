@@ -40,9 +40,82 @@ model UserProfile {
   updatedAt      DateTime @updatedAt
 }
 
-enum Stream{
+enum Stream {
   PCM
   PCMC
   PCB
   PCMB
-} 
+}
+
+enum QuestionType {
+  MCQ
+}
+
+enum QuestionSubject {
+  PHYSICS
+  CHEMISTRY
+  MATHEMATICS
+}
+
+enum OptionLabel {
+  A
+  B
+  C
+  D
+}
+
+model Question {
+  id            String          @id @default(cuid())
+  externalId    String          @unique @db.VarChar(255)
+  contentHash   String          @unique @db.VarChar(64)
+  text          String          @db.Text
+  subject       QuestionSubject
+  chapter       String          @db.VarChar(255)
+  topic         String?         @db.VarChar(255)
+  year          Int?
+  paperTitle    String?         @db.VarChar(255)
+  difficulty    String?         @db.VarChar(50)
+  type          QuestionType    @default(MCQ)
+  correctOption OptionLabel
+  explanation   String?         @db.Text
+  source        String          @default("jee_mains_pyqs_data_base") @db.VarChar(100)
+
+  options       QuestionOption[]
+  vectorRecord  QuestionVector?
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([subject])
+  @@index([chapter])
+  @@index([topic])
+  @@index([year])
+  @@index([difficulty])
+  @@index([contentHash])
+  @@index([externalId])
+}
+
+model QuestionOption {
+  id         String      @id @default(cuid())
+  questionId String
+  question   Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  label      OptionLabel
+  text       String      @db.Text
+  position   Int
+
+  @@unique([questionId, label])
+  @@unique([questionId, position])
+  @@index([questionId])
+}
+
+model QuestionVector {
+  id         String   @id @default(cuid())
+  questionId String   @unique
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  embedding  Float[]
+  metadata   Json
+  createdAt  DateTime @default(now())
+
+  @@index([questionId])
+}
+ 
