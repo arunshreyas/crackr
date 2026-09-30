@@ -57,7 +57,7 @@ export function ProgressCharts({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* 1. Questions Solved Chart */}
-      <section className="rounded-2xl border border-[#2A3145] bg-[#0C0E14] p-6 flex flex-col justify-between space-y-4">
+      <section className="rounded-2xl border border-white/[0.08] bg-[#0C0E14] p-6 flex flex-col justify-between space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-sm font-semibold text-white tracking-tight">
@@ -69,14 +69,14 @@ export function ProgressCharts({
           </div>
 
           {/* Range Selector */}
-          <div className="inline-flex rounded-lg bg-white/[0.04] p-0.5 border border-[#2A3145]">
+          <div className="inline-flex rounded-lg bg-white/[0.04] p-0.5 border border-white/[0.08]">
             {(['7d', '30d', '90d'] as TimeRange[]).map((r) => (
               <button
                 key={r}
                 onClick={() => setQuestionsRange(r)}
                 className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-all ${
                   questionsRange === r
-                    ? 'bg-[#2373F4] text-white shadow-sm font-semibold'
+                    ? 'bg-[#FF9D50] text-[#080A0E] shadow-sm font-bold'
                     : 'text-zinc-400 hover:text-white'
                 }`}
               >
@@ -91,7 +91,7 @@ export function ProgressCharts({
           {hasAnyPractice ? (
             <QuestionsLineChart data={currentQuestionsData} />
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-center p-6 border border-dashed border-[#2A3145] rounded-xl space-y-2">
+            <div className="h-full flex flex-col items-center justify-center text-center p-6 border border-dashed border-white/[0.08] rounded-xl space-y-2">
               <span className="text-xs font-medium text-zinc-300">
                 No practice data yet
               </span>
@@ -100,7 +100,7 @@ export function ProgressCharts({
               </p>
               <Link
                 href="/practice"
-                className="inline-block mt-2 text-xs font-semibold text-[#578EF5] hover:underline"
+                className="inline-block mt-2 text-xs font-semibold text-[#FF9D50] hover:underline"
               >
                 Start practicing →
               </Link>
@@ -110,7 +110,7 @@ export function ProgressCharts({
       </section>
 
       {/* 2. Accuracy Chart */}
-      <section className="rounded-2xl border border-[#2A3145] bg-[#0C0E14] p-6 flex flex-col justify-between space-y-4">
+      <section className="rounded-2xl border border-white/[0.08] bg-[#0C0E14] p-6 flex flex-col justify-between space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-sm font-semibold text-white tracking-tight">
@@ -122,14 +122,14 @@ export function ProgressCharts({
           </div>
 
           {/* Range Selector */}
-          <div className="inline-flex rounded-lg bg-white/[0.04] p-0.5 border border-[#2A3145]">
+          <div className="inline-flex rounded-lg bg-white/[0.04] p-0.5 border border-white/[0.08]">
             {(['7d', '30d', '90d'] as TimeRange[]).map((r) => (
               <button
                 key={r}
                 onClick={() => setAccuracyRange(r)}
                 className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-all ${
                   accuracyRange === r
-                    ? 'bg-[#2373F4] text-white shadow-sm font-semibold'
+                    ? 'bg-[#20C4D0] text-[#080A0E] shadow-sm font-bold'
                     : 'text-zinc-400 hover:text-white'
                 }`}
               >
@@ -144,7 +144,7 @@ export function ProgressCharts({
           {currentAccuracyData.length > 0 ? (
             <AccuracyLineChart data={currentAccuracyData} />
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-center p-6 border border-dashed border-[#2A3145] rounded-xl space-y-2">
+            <div className="h-full flex flex-col items-center justify-center text-center p-6 border border-dashed border-white/[0.08] rounded-xl space-y-2">
               <span className="text-xs font-medium text-zinc-300">
                 No accuracy data yet
               </span>
@@ -153,7 +153,7 @@ export function ProgressCharts({
               </p>
               <Link
                 href="/practice"
-                className="inline-block mt-2 text-xs font-semibold text-[#65D0F4] hover:underline"
+                className="inline-block mt-2 text-xs font-semibold text-[#20C4D0] hover:underline"
               >
                 Start practicing →
               </Link>
@@ -199,9 +199,9 @@ function QuestionsLineChart({ data }: { data: QuestionPoint[] }) {
         preserveAspectRatio="none"
       >
         <defs>
-          <linearGradient id="crackrBlueGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#2373F4" stopOpacity="0.25" />
-            <stop offset="100%" stopColor="#2373F4" stopOpacity="0.0" />
+          <linearGradient id="crackrOrangeGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#FF9D50" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="#FF9D50" stopOpacity="0.0" />
           </linearGradient>
         </defs>
 
@@ -211,7 +211,7 @@ function QuestionsLineChart({ data }: { data: QuestionPoint[] }) {
           y1={paddingTop}
           x2={width - paddingX}
           y2={paddingTop}
-          stroke="#2A3145"
+          stroke="rgba(255,255,255,0.06)"
           strokeDasharray="3 3"
         />
         <line
@@ -219,7 +219,7 @@ function QuestionsLineChart({ data }: { data: QuestionPoint[] }) {
           y1={paddingTop + chartHeight / 2}
           x2={width - paddingX}
           y2={paddingTop + chartHeight / 2}
-          stroke="#2A3145"
+          stroke="rgba(255,255,255,0.06)"
           strokeDasharray="3 3"
         />
         <line
@@ -227,14 +227,14 @@ function QuestionsLineChart({ data }: { data: QuestionPoint[] }) {
           y1={height - paddingBottom}
           x2={width - paddingX}
           y2={height - paddingBottom}
-          stroke="#2A3145"
+          stroke="rgba(255,255,255,0.08)"
         />
 
         {/* Gradient fill */}
-        <path d={areaD} fill="url(#crackrBlueGrad)" />
+        <path d={areaD} fill="url(#crackrOrangeGrad)" />
 
-        {/* Main Line in Crackr Primary Blue */}
-        <path d={pathD} fill="none" stroke="#2373F4" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        {/* Main Line in Crackr Orange */}
+        <path d={pathD} fill="none" stroke="#FF9D50" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
 
         {/* Points & Hover Triggers */}
         {points.map((p, idx) => (
@@ -243,7 +243,7 @@ function QuestionsLineChart({ data }: { data: QuestionPoint[] }) {
               cx={p.x}
               cy={p.y}
               r={hoveredIdx === idx ? 4.5 : 2.5}
-              fill={hoveredIdx === idx ? '#fff' : '#2373F4'}
+              fill={hoveredIdx === idx ? '#FFF9D8' : '#FF9D50'}
               stroke="#080A0E"
               strokeWidth="2"
               className="transition-all"
@@ -284,13 +284,13 @@ function QuestionsLineChart({ data }: { data: QuestionPoint[] }) {
       {/* Tooltip Overlay */}
       {hoveredIdx !== null && points[hoveredIdx] && (
         <div
-          className="absolute pointer-events-none bg-[#0C0E14] border border-[#2A3145] text-white text-[11px] px-2.5 py-1.5 rounded-lg shadow-xl -translate-x-1/2 -translate-y-full"
+          className="absolute pointer-events-none bg-[#0C0E14] border border-white/[0.15] text-white text-[11px] px-2.5 py-1.5 rounded-lg shadow-xl -translate-x-1/2 -translate-y-full"
           style={{
             left: `${(points[hoveredIdx].x / width) * 100}%`,
             top: `${(points[hoveredIdx].y / height) * 100 - 8}%`,
           }}
         >
-          <span className="font-semibold block text-[#578EF5]">{points[hoveredIdx].count} questions</span>
+          <span className="font-semibold block text-[#FF9D50]">{points[hoveredIdx].count} questions</span>
           <span className="text-[10px] text-zinc-400">{points[hoveredIdx].label}</span>
         </div>
       )}
@@ -334,7 +334,7 @@ function AccuracyLineChart({ data }: { data: AccuracyPoint[] }) {
           y1={paddingTop}
           x2={width - paddingX}
           y2={paddingTop}
-          stroke="#2A3145"
+          stroke="rgba(255,255,255,0.06)"
           strokeDasharray="3 3"
         />
         <text x={paddingX - 4} y={paddingTop + 3} textAnchor="end" fontSize="8" fill="rgba(255,255,255,0.3)">
@@ -346,7 +346,7 @@ function AccuracyLineChart({ data }: { data: AccuracyPoint[] }) {
           y1={paddingTop + chartHeight / 2}
           x2={width - paddingX}
           y2={paddingTop + chartHeight / 2}
-          stroke="#2A3145"
+          stroke="rgba(255,255,255,0.06)"
           strokeDasharray="3 3"
         />
         <text x={paddingX - 4} y={paddingTop + chartHeight / 2 + 3} textAnchor="end" fontSize="8" fill="rgba(255,255,255,0.3)">
@@ -358,11 +358,11 @@ function AccuracyLineChart({ data }: { data: AccuracyPoint[] }) {
           y1={height - paddingBottom}
           x2={width - paddingX}
           y2={height - paddingBottom}
-          stroke="#2A3145"
+          stroke="rgba(255,255,255,0.08)"
         />
 
         {/* Main Line in Cyan */}
-        <path d={pathD} fill="none" stroke="#65D0F4" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={pathD} fill="none" stroke="#20C4D0" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
 
         {/* Data points & hover triggers */}
         {points.map((p, idx) => (
@@ -371,7 +371,7 @@ function AccuracyLineChart({ data }: { data: AccuracyPoint[] }) {
               cx={p.x}
               cy={p.y}
               r={hoveredIdx === idx ? 5 : 3}
-              fill={hoveredIdx === idx ? '#fff' : '#65D0F4'}
+              fill={hoveredIdx === idx ? '#FFF9D8' : '#20C4D0'}
               stroke="#080A0E"
               strokeWidth="2"
               className="transition-all"
@@ -412,13 +412,13 @@ function AccuracyLineChart({ data }: { data: AccuracyPoint[] }) {
       {/* Tooltip Overlay */}
       {hoveredIdx !== null && points[hoveredIdx] && (
         <div
-          className="absolute pointer-events-none bg-[#0C0E14] border border-[#2A3145] text-white text-[11px] px-2.5 py-1.5 rounded-lg shadow-xl -translate-x-1/2 -translate-y-full"
+          className="absolute pointer-events-none bg-[#0C0E14] border border-white/[0.15] text-white text-[11px] px-2.5 py-1.5 rounded-lg shadow-xl -translate-x-1/2 -translate-y-full"
           style={{
             left: `${(points[hoveredIdx].x / width) * 100}%`,
             top: `${(points[hoveredIdx].y / height) * 100 - 8}%`,
           }}
         >
-          <span className="font-semibold block text-[#65D0F4]">{points[hoveredIdx].accuracy}% accuracy</span>
+          <span className="font-semibold block text-[#20C4D0]">{points[hoveredIdx].accuracy}% accuracy</span>
           <span className="text-[10px] text-zinc-400">
             {points[hoveredIdx].total} Qs · {points[hoveredIdx].label}
           </span>

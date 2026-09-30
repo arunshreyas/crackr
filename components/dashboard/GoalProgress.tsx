@@ -9,7 +9,7 @@ interface GoalProgressProps {
 
 export function GoalProgress({ today }: GoalProgressProps) {
   return (
-    <section className="rounded-2xl border border-[#2A3145] bg-[#0C0E14] p-6 flex flex-col justify-between space-y-6">
+    <section className="rounded-2xl border border-white/[0.08] bg-[#0C0E14] p-6 flex flex-col justify-between space-y-6">
       <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -17,7 +17,7 @@ export function GoalProgress({ today }: GoalProgressProps) {
             Today&apos;s Target
           </span>
           {today.isCompleted ? (
-            <span className="inline-flex items-center gap-1 text-xs font-medium text-[#65D0F4] bg-[#65D0F4]/10 px-2.5 py-0.5 rounded-full border border-[#65D0F4]/20">
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-[#50D97A] bg-[#50D97A]/10 px-2.5 py-0.5 rounded-full border border-[#50D97A]/20">
               Goal completed ✓
             </span>
           ) : (
@@ -43,11 +43,11 @@ export function GoalProgress({ today }: GoalProgressProps) {
             </span>
           </div>
 
-          {/* Progress Bar with Crackr Blue */}
-          <div className="w-full h-2 rounded-full bg-[#1A202C] overflow-hidden">
+          {/* Progress Bar with Crackr Orange/Green */}
+          <div className="w-full h-2 rounded-full bg-white/[0.06] overflow-hidden">
             <div
               className={`h-full transition-all duration-700 rounded-full ${
-                today.isCompleted ? 'bg-[#65D0F4]' : 'bg-[#2373F4]'
+                today.isCompleted ? 'bg-[#50D97A]' : 'bg-[#FF9D50]'
               }`}
               style={{ width: `${today.progressPercentage}%` }}
             />
@@ -56,7 +56,7 @@ export function GoalProgress({ today }: GoalProgressProps) {
       </div>
 
       {/* Sub-Metrics Row */}
-      <div className="grid grid-cols-3 gap-3 pt-4 border-t border-[#2A3145]/60">
+      <div className="grid grid-cols-3 gap-3 pt-4 border-t border-white/[0.06]">
         <div className="rounded-xl bg-white/[0.02] p-2.5 text-center">
           <span className="text-[11px] text-zinc-400 block">Accuracy</span>
           <span className="text-sm font-semibold text-white mt-0.5 block">
@@ -71,7 +71,7 @@ export function GoalProgress({ today }: GoalProgressProps) {
         </div>
         <div className="rounded-xl bg-white/[0.02] p-2.5 text-center">
           <span className="text-[11px] text-zinc-400 block">XP</span>
-          <span className="text-sm font-semibold text-[#F2F7A0] mt-0.5 block">
+          <span className="text-sm font-semibold text-[#FFF9D8] mt-0.5 block">
             +{today.xpEarned}
           </span>
         </div>

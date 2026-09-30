@@ -21,7 +21,7 @@ export function SubjectPerformance({ subjects }: SubjectPerformanceProps) {
   }, [subjects, sortMode]);
 
   return (
-    <section className="rounded-2xl border border-[#2A3145] bg-[#0C0E14] p-6 space-y-5">
+    <section className="rounded-2xl border border-white/[0.08] bg-[#0C0E14] p-6 space-y-5">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-semibold text-white tracking-tight">
@@ -39,7 +39,7 @@ export function SubjectPerformance({ subjects }: SubjectPerformanceProps) {
             onClick={() => setSortMode('accuracy')}
             className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
               sortMode === 'accuracy'
-                ? 'bg-white/[0.08] text-white font-semibold'
+                ? 'bg-white/[0.1] text-[#FFF9D8] font-semibold'
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
@@ -49,7 +49,7 @@ export function SubjectPerformance({ subjects }: SubjectPerformanceProps) {
             onClick={() => setSortMode('questions')}
             className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
               sortMode === 'questions'
-                ? 'bg-white/[0.08] text-white font-semibold'
+                ? 'bg-white/[0.1] text-[#FFF9D8] font-semibold'
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
@@ -63,7 +63,7 @@ export function SubjectPerformance({ subjects }: SubjectPerformanceProps) {
         {sortedList.map((s) => (
           <div
             key={s.rawSubject}
-            className="rounded-xl bg-white/[0.01] border border-[#2A3145]/60 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-[#578EF5]/40 transition-colors"
+            className="rounded-xl bg-white/[0.01] border border-white/[0.06] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-[#FF9D50]/40 transition-colors"
           >
             <div className="space-y-1">
               <div className="flex items-center gap-2">
@@ -77,9 +77,9 @@ export function SubjectPerformance({ subjects }: SubjectPerformanceProps) {
 
             <div className="flex items-center gap-4">
               <div className="w-32 hidden sm:block">
-                <div className="w-full h-1.5 rounded-full bg-[#1A202C] overflow-hidden">
+                <div className="w-full h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
                   <div
-                    className="h-full bg-[#578EF5] rounded-full transition-all duration-500"
+                    className="h-full bg-[#FF9D50] rounded-full transition-all duration-500"
                     style={{ width: `${s.accuracy ?? 0}%` }}
                   />
                 </div>
@@ -104,27 +104,27 @@ function StatusBadge({
 }) {
   if (status === 'Strong') {
     return (
-      <span className="text-[10px] font-medium text-[#65D0F4] bg-[#65D0F4]/10 px-2 py-0.5 rounded-full border border-[#65D0F4]/20">
+      <span className="text-[10px] font-medium text-[#50D97A] bg-[#50D97A]/10 px-2 py-0.5 rounded-full border border-[#50D97A]/20">
         Strong
       </span>
     );
   }
   if (status === 'Improving') {
     return (
-      <span className="text-[10px] font-medium text-[#578EF5] bg-[#578EF5]/10 px-2 py-0.5 rounded-full border border-[#578EF5]/20">
+      <span className="text-[10px] font-medium text-[#20C4D0] bg-[#20C4D0]/10 px-2 py-0.5 rounded-full border border-[#20C4D0]/20">
         Improving
       </span>
     );
   }
   if (status === 'Needs attention') {
     return (
-      <span className="text-[10px] font-medium text-[#F2F7A0] bg-[#F2F7A0]/10 px-2 py-0.5 rounded-full border border-[#F2F7A0]/20">
+      <span className="text-[10px] font-medium text-[#FF9D50] bg-[#FF9D50]/10 px-2 py-0.5 rounded-full border border-[#FF9D50]/20">
         Needs work
       </span>
     );
   }
   return (
-    <span className="text-[10px] font-medium text-zinc-400 bg-white/[0.04] px-2 py-0.5 rounded-full border border-[#2A3145]">
+    <span className="text-[10px] font-medium text-zinc-400 bg-white/[0.04] px-2 py-0.5 rounded-full border border-white/[0.08]">
       {status}
     </span>
   );

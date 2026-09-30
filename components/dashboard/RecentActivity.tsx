@@ -11,7 +11,7 @@ interface RecentActivityProps {
 
 export function RecentActivity({ sessions, recommendation }: RecentActivityProps) {
   return (
-    <section className="rounded-2xl border border-[#2A3145] bg-[#0C0E14] p-6 space-y-5 flex flex-col justify-between">
+    <section className="rounded-2xl border border-white/[0.08] bg-[#0C0E14] p-6 space-y-5 flex flex-col justify-between">
       <div className="space-y-4">
         <div>
           <h2 className="text-sm font-semibold text-white tracking-tight">
@@ -28,7 +28,7 @@ export function RecentActivity({ sessions, recommendation }: RecentActivityProps
             {sessions.map((session) => (
               <div
                 key={session.id}
-                className="rounded-xl bg-white/[0.01] border border-[#2A3145]/60 p-3.5 flex items-center justify-between hover:border-[#578EF5]/40 transition-colors"
+                className="rounded-xl bg-white/[0.01] border border-white/[0.06] p-3.5 flex items-center justify-between hover:border-[#FF9D50]/40 transition-colors"
               >
                 <div className="space-y-0.5">
                   <span className="text-xs font-medium text-white block">
@@ -36,7 +36,7 @@ export function RecentActivity({ sessions, recommendation }: RecentActivityProps
                   </span>
                   <span className="text-[11px] text-zinc-400 block">
                     {session.questionsCount} questions ·{' '}
-                    <span className="text-[#65D0F4] font-medium">{session.accuracy}% accuracy</span>
+                    <span className="text-[#20C4D0] font-medium">{session.accuracy}% accuracy</span>
                   </span>
                 </div>
                 <span className="text-[11px] text-zinc-400 font-normal">
@@ -46,7 +46,7 @@ export function RecentActivity({ sessions, recommendation }: RecentActivityProps
             ))}
           </div>
         ) : (
-          <div className="text-center py-10 px-4 rounded-xl border border-dashed border-[#2A3145] space-y-2">
+          <div className="text-center py-10 px-4 rounded-xl border border-dashed border-white/[0.08] space-y-2">
             <p className="text-xs font-medium text-zinc-300">
               No practice sessions recorded yet.
             </p>
@@ -55,7 +55,7 @@ export function RecentActivity({ sessions, recommendation }: RecentActivityProps
             </p>
             <Link
               href="/practice"
-              className="inline-block mt-2 text-xs font-semibold text-[#578EF5] hover:underline"
+              className="inline-block mt-2 text-xs font-semibold text-[#FF9D50] hover:underline"
             >
               Start your first session →
             </Link>
@@ -64,7 +64,7 @@ export function RecentActivity({ sessions, recommendation }: RecentActivityProps
       </div>
 
       {/* Quick Practice Card Footer */}
-      <div className="pt-4 border-t border-[#2A3145]/60 mt-4">
+      <div className="pt-4 border-t border-white/[0.06] mt-4">
         <div className="flex items-center justify-between">
           <div>
             <span className="text-[11px] text-zinc-400 block">Ready to practice?</span>
@@ -74,7 +74,7 @@ export function RecentActivity({ sessions, recommendation }: RecentActivityProps
           </div>
           <Link
             href="/practice"
-            className="px-3.5 py-1.5 rounded-xl bg-[#2373F4] hover:bg-[#578EF5] text-white text-xs font-semibold tracking-wide transition-all shadow-sm active:scale-[0.99]"
+            className="px-4 py-2 rounded-xl bg-[#FF9D50] hover:bg-[#FFAA66] text-[#080A0E] text-xs font-semibold tracking-wide transition-all shadow-sm active:scale-[0.99]"
           >
             Practice →
           </Link>

@@ -18,7 +18,7 @@ interface DashboardClientProps {
 
 export function DashboardClient({ data }: DashboardClientProps) {
   return (
-    <div className="min-h-screen bg-[#080A0E] text-zinc-100 flex selection:bg-[#2373F4]/30 selection:text-white">
+    <div className="min-h-screen bg-[#080A0E] text-zinc-100 flex selection:bg-[#FF9D50]/30 selection:text-[#FFF9D8]">
       {/* App Sidebar (Fixed Desktop Sidebar + Mobile Bottom Nav) */}
       <AppSidebar />
 
@@ -46,7 +46,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
 
             <Link
               href="/practice"
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#2373F4] hover:bg-[#578EF5] text-white text-xs font-semibold tracking-wide transition-all shadow-sm active:scale-[0.99] self-start sm:self-auto"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#FF9D50] hover:bg-[#FFAA66] text-[#080A0E] text-xs font-semibold tracking-wide transition-all shadow-sm active:scale-[0.99] self-start sm:self-auto"
             >
               <span>{data.recommendation.actionText}</span>
               <span aria-hidden="true">→</span>

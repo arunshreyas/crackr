@@ -11,7 +11,7 @@ export function StatCards({ overview }: StatCardsProps) {
   return (
     <section className="grid grid-cols-2 gap-4">
       {/* 1. Questions Solved */}
-      <div className="rounded-2xl border border-[#2A3145] bg-[#0C0E14] p-5 flex flex-col justify-between hover:border-[#578EF5]/40 transition-colors">
+      <div className="rounded-2xl border border-white/[0.08] bg-[#0C0E14] p-5 flex flex-col justify-between hover:border-[#FF9D50]/40 transition-colors">
         <span className="text-xs font-medium text-zinc-400">Questions solved</span>
         <div className="mt-3">
           <div className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
@@ -19,7 +19,7 @@ export function StatCards({ overview }: StatCardsProps) {
           </div>
           <div className="mt-1 text-[11px] font-medium">
             {overview.questionsSolvedChange ? (
-              <span className="text-[#65D0F4]">
+              <span className="text-[#20C4D0]">
                 {overview.questionsSolvedChange.label}
               </span>
             ) : (
@@ -30,7 +30,7 @@ export function StatCards({ overview }: StatCardsProps) {
       </div>
 
       {/* 2. Accuracy */}
-      <div className="rounded-2xl border border-[#2A3145] bg-[#0C0E14] p-5 flex flex-col justify-between hover:border-[#578EF5]/40 transition-colors">
+      <div className="rounded-2xl border border-white/[0.08] bg-[#0C0E14] p-5 flex flex-col justify-between hover:border-[#20C4D0]/40 transition-colors">
         <span className="text-xs font-medium text-zinc-400">Accuracy</span>
         <div className="mt-3">
           <div className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
@@ -38,7 +38,7 @@ export function StatCards({ overview }: StatCardsProps) {
           </div>
           <div className="mt-1 text-[11px] font-medium">
             {overview.accuracyChange ? (
-              <span className="text-[#65D0F4]">
+              <span className="text-[#50D97A]">
                 {overview.accuracyChange.label}
               </span>
             ) : (
@@ -49,7 +49,7 @@ export function StatCards({ overview }: StatCardsProps) {
       </div>
 
       {/* 3. Current Streak */}
-      <div className="rounded-2xl border border-[#2A3145] bg-[#0C0E14] p-5 flex flex-col justify-between hover:border-[#578EF5]/40 transition-colors">
+      <div className="rounded-2xl border border-white/[0.08] bg-[#0C0E14] p-5 flex flex-col justify-between hover:border-[#50D97A]/40 transition-colors">
         <span className="text-xs font-medium text-zinc-400">Current streak</span>
         <div className="mt-3">
           <div className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
@@ -65,13 +65,13 @@ export function StatCards({ overview }: StatCardsProps) {
       </div>
 
       {/* 4. Total XP */}
-      <div className="rounded-2xl border border-[#2A3145] bg-[#0C0E14] p-5 flex flex-col justify-between hover:border-[#578EF5]/40 transition-colors">
+      <div className="rounded-2xl border border-white/[0.08] bg-[#0C0E14] p-5 flex flex-col justify-between hover:border-[#FF9D50]/40 transition-colors">
         <span className="text-xs font-medium text-zinc-400">Total XP</span>
         <div className="mt-3">
-          <div className="text-2xl sm:text-3xl font-bold text-[#F2F7A0] tracking-tight">
+          <div className="text-2xl sm:text-3xl font-bold text-[#FFF9D8] tracking-tight">
             {overview.totalXp.toLocaleString()}
           </div>
-          <div className="mt-1 text-[11px] text-[#F2F7A0]/70 font-medium">
+          <div className="mt-1 text-[11px] text-[#FF9D50] font-medium">
             +{overview.xpThisWeek.toLocaleString()} this week
           </div>
         </div>
