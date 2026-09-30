@@ -173,58 +173,12 @@ export async function GET() {
   }
 }
 
-export async function POST(req: Request) {
-  try {
-    const user = await currentUser();
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const body = await req.json();
-    const { isCorrect = true, xpEarned = 25 } = body;
-
-    const profile = await prisma.userProfile.findUnique({
-      where: { clerkId: user.id },
-    });
-
-    if (!profile) {
-      return NextResponse.json(
-        { success: false, error: 'User profile not found. Complete onboarding first.' },
-        { status: 404 }
-      );
-    }
-
-    const newAnswered = profile.questionsAnswered + 1;
-    const newCorrect = isCorrect ? profile.questionsCorrect + 1 : profile.questionsCorrect;
-    const newXp = profile.xp + (Number(xpEarned) || 25);
-    const newLevel = Math.max(1, Math.floor(newXp / 500) + 1);
-
-    const updated = await prisma.userProfile.update({
-      where: { clerkId: user.id },
-      data: {
-        questionsAnswered: newAnswered,
-        questionsCorrect: newCorrect,
-        xp: newXp,
-        level: newLevel,
-        lastPracticeAt: new Date(),
-      },
-    });
-
-    return NextResponse.json({
-      success: true,
-      updated: {
-        questionsAnswered: updated.questionsAnswered,
-        questionsCorrect: updated.questionsCorrect,
-        xp: updated.xp,
-        level: updated.level,
-        accuracy: Number(((updated.questionsCorrect / updated.questionsAnswered) * 100).toFixed(1)),
-      },
-    });
-  } catch (error) {
-    console.error('Error in /api/coverage POST:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to record practice result' },
-      { status: 500 }
-    );
-  }
+export async function POST() {
+  return NextResponse.json(
+    {
+      success: false,
+      error: 'Method Not Allowed. Direct practice and stat mutations are disabled. Use authenticated practice actions instead.',
+    },
+    { status: 405 }
+  );
 }
