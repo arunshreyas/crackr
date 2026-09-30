@@ -23,11 +23,23 @@ export interface AnswerSubmissionResult {
   isCorrect: boolean;
   correctOption: OptionLabel;
   explanation: string | null;
+  topic: string | null;
+  chapter: string;
+  subject: QuestionSubject;
   xpEarned: number;
   newTotalXp: number;
   newLevel: number;
   leveledUp: boolean;
   streak: number;
+}
+
+export interface TopicPerformance {
+  topic: string;
+  chapter: string;
+  subject: string;
+  total: number;
+  correct: number;
+  accuracy: number;
 }
 
 export interface PracticeSessionSummary {
@@ -41,9 +53,15 @@ export interface PracticeSessionSummary {
   durationSeconds: number;
   completedAt: string;
   newAchievements: UnlockedAchievementInfo[];
+  topicDiagnostics: {
+    weakTopics: TopicPerformance[];
+    strongTopics: TopicPerformance[];
+  };
   questionsBreakdown: Array<{
     questionId: string;
     text: string;
+    topic: string | null;
+    chapter: string;
     selectedOption: OptionLabel;
     correctOption: OptionLabel;
     isCorrect: boolean;
@@ -137,6 +155,9 @@ export async function submitPracticeAnswer(params: {
     where: { id: questionId },
     select: {
       id: true,
+      subject: true,
+      chapter: true,
+      topic: true,
       correctOption: true,
       explanation: true,
     },
@@ -188,6 +209,9 @@ export async function submitPracticeAnswer(params: {
     isCorrect,
     correctOption: question.correctOption,
     explanation: question.explanation,
+    topic: question.topic || question.chapter,
+    chapter: question.chapter,
+    subject: question.subject,
     xpEarned: xpAmount,
     newTotalXp: xpResult.newTotalXp,
     newLevel: xpResult.newLevel,
@@ -215,6 +239,9 @@ export async function completePracticeSession(params: {
             select: {
               id: true,
               text: true,
+              subject: true,
+              chapter: true,
+              topic: true,
               correctOption: true,
               explanation: true,
             },
@@ -264,9 +291,44 @@ export async function completePracticeSession(params: {
     sessionQuestions: totalQuestions,
   });
 
+  // Calculate topic-level diagnostic performance
+  const topicMap = new Map<string, { topic: string; chapter: string; subject: string; total: number; correct: number }>();
+
+  for (const a of answers) {
+    const topicKey = a.question.topic || a.question.chapter;
+    const existing = topicMap.get(topicKey) || {
+      topic: topicKey,
+      chapter: a.question.chapter,
+      subject: a.question.subject,
+      total: 0,
+      correct: 0,
+    };
+    existing.total += 1;
+    if (a.isCorrect) existing.correct += 1;
+    topicMap.set(topicKey, existing);
+  }
+
+  const weakTopics: TopicPerformance[] = [];
+  const strongTopics: TopicPerformance[] = [];
+
+  for (const item of topicMap.values()) {
+    const acc = Math.round((item.correct / item.total) * 100);
+    const perf: TopicPerformance = {
+      ...item,
+      accuracy: acc,
+    };
+    if (acc < 100) {
+      weakTopics.push(perf);
+    } else {
+      strongTopics.push(perf);
+    }
+  }
+
   const questionsBreakdown = answers.map((a) => ({
     questionId: a.questionId,
     text: a.question.text,
+    topic: a.question.topic,
+    chapter: a.question.chapter,
     selectedOption: a.selectedOption,
     correctOption: a.question.correctOption,
     isCorrect: a.isCorrect,
@@ -288,6 +350,10 @@ export async function completePracticeSession(params: {
     durationSeconds: Math.max(durationSeconds, 1),
     completedAt: completedAt.toISOString(),
     newAchievements,
+    topicDiagnostics: {
+      weakTopics,
+      strongTopics,
+    },
     questionsBreakdown,
   };
 }

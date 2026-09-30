@@ -26,6 +26,10 @@ import {
   XCircle,
   RotateCcw,
   Sparkles,
+  AlertTriangle,
+  Target,
+  Layers,
+  Flame,
 } from 'lucide-react';
 import { MathRenderer } from '@/components/ui/MathRenderer';
 
@@ -468,22 +472,33 @@ export function PracticeContainer({
           {/* Feedback & Explanation (After Submission) */}
           {answerResult && (
             <div
-              className={`p-5 rounded-xl border space-y-3 animate-in fade-in duration-300 ${
+              className={`p-5 rounded-xl border space-y-4 animate-in fade-in duration-300 ${
                 answerResult.isCorrect
                   ? 'border-[#50D97A]/30 bg-[#50D97A]/10 text-[#50D97A]'
                   : 'border-red-500/30 bg-red-500/10 text-red-300'
               }`}
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   {answerResult.isCorrect ? (
-                    <CheckCircle2 className="w-5 h-5 text-[#50D97A]" />
+                    <div className="p-1 rounded-full bg-[#50D97A]/20">
+                      <CheckCircle2 className="w-5 h-5 text-[#50D97A]" />
+                    </div>
                   ) : (
-                    <XCircle className="w-5 h-5 text-red-400" />
+                    <div className="p-1 rounded-full bg-red-500/20">
+                      <XCircle className="w-5 h-5 text-red-400" />
+                    </div>
                   )}
-                  <span className="text-sm font-bold">
-                    {answerResult.isCorrect ? 'Correct Answer!' : 'Incorrect'}
-                  </span>
+                  <div>
+                    <span className="text-sm font-bold block">
+                      {answerResult.isCorrect ? 'Correct Answer!' : 'Incorrect'}
+                    </span>
+                    {!answerResult.isCorrect && (
+                      <span className="text-xs text-red-300/80">
+                        Correct option: <strong className="text-white font-bold">Option {answerResult.correctOption}</strong>
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -493,9 +508,29 @@ export function PracticeContainer({
                 </div>
               </div>
 
+              {/* Instant Weak Topic Identification */}
+              {!answerResult.isCorrect && (
+                <div className="p-3.5 rounded-lg bg-black/40 border border-red-500/20 flex items-start gap-3">
+                  <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5 min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-semibold text-white">
+                        Topic to Revise:
+                      </span>
+                      <span className="text-xs font-bold text-red-300 bg-red-500/20 px-2 py-0.5 rounded border border-red-500/30">
+                        {answerResult.topic || currentQuestion.topic || currentQuestion.chapter}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-zinc-400 leading-normal">
+                      Identified as a concept requiring review. Recorded in your chapter diagnostics.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {answerResult.explanation && (
-                <div className="pt-2 border-t border-white/[0.08] text-xs text-zinc-300 leading-relaxed">
-                  <span className="font-semibold block text-white mb-1">Explanation:</span>
+                <div className="pt-3 border-t border-white/[0.08] text-xs text-zinc-200 leading-relaxed space-y-1">
+                  <span className="font-semibold block text-white text-xs">Explanation & Key Takeaway:</span>
                   <MathRenderer content={answerResult.explanation} />
                 </div>
               )}
@@ -614,6 +649,109 @@ export function PracticeContainer({
           </div>
         )}
 
+        {/* Topic Diagnostics & Concept Mastery */}
+        {resultsSummary.topicDiagnostics && (
+          <div className="rounded-2xl border border-white/[0.08] bg-[#0C0E14] p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-[#FF9D50]" />
+                  Topic Diagnostics & Diagnostic Takeaways
+                </h2>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  Real-time concept evaluation from this practice session
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Weak Topics */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-xs font-semibold text-red-300">
+                  <AlertTriangle className="w-4 h-4 text-red-400" />
+                  <span>Topics Needing Revision ({resultsSummary.topicDiagnostics.weakTopics.length})</span>
+                </div>
+
+                {resultsSummary.topicDiagnostics.weakTopics.length === 0 ? (
+                  <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.04] text-xs text-zinc-400 text-center">
+                    No weak concepts detected! Flawless session.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {resultsSummary.topicDiagnostics.weakTopics.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="p-3.5 rounded-xl bg-red-500/5 border border-red-500/20 space-y-2"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <span className="text-xs font-bold text-white block">
+                              {item.topic}
+                            </span>
+                            <span className="text-[11px] text-zinc-400 block">
+                              {item.chapter}
+                            </span>
+                          </div>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-300 shrink-0">
+                            {item.correct}/{item.total} ({item.accuracy}%)
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedChapter(item.chapter);
+                            setScreenState('CONFIG');
+                          }}
+                          className="w-full py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-300 text-[11px] font-semibold transition-colors flex items-center justify-center gap-1.5"
+                        >
+                          <Target className="w-3.5 h-3.5" />
+                          <span>Target Practice {item.chapter}</span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Strong Topics */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-xs font-semibold text-[#50D97A]">
+                  <CheckCircle2 className="w-4 h-4 text-[#50D97A]" />
+                  <span>Mastered Concepts ({resultsSummary.topicDiagnostics.strongTopics.length})</span>
+                </div>
+
+                {resultsSummary.topicDiagnostics.strongTopics.length === 0 ? (
+                  <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.04] text-xs text-zinc-400 text-center">
+                    Keep practicing to master new topics.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {resultsSummary.topicDiagnostics.strongTopics.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="p-3.5 rounded-xl bg-[#50D97A]/5 border border-[#50D97A]/20 flex items-center justify-between"
+                      >
+                        <div>
+                          <span className="text-xs font-bold text-white block">
+                            {item.topic}
+                          </span>
+                          <span className="text-[11px] text-zinc-400 block">
+                            {item.chapter}
+                          </span>
+                        </div>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#50D97A]/20 text-[#50D97A] shrink-0">
+                          100% Mastered ({item.total}/{item.total})
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Question Review Section */}
         <div className="rounded-2xl border border-white/[0.08] bg-[#0C0E14] p-6 space-y-4">
           <h2 className="text-sm font-semibold text-white tracking-tight">
@@ -627,9 +765,16 @@ export function PracticeContainer({
                 className="p-4 rounded-xl bg-white/[0.01] border border-white/[0.06] space-y-2"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-zinc-400">
-                    Question {idx + 1}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-zinc-400">
+                      Question {idx + 1}
+                    </span>
+                    {(q.topic || q.chapter) && (
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-white/[0.04] text-zinc-300 border border-white/[0.06] font-mono">
+                        {q.topic || q.chapter}
+                      </span>
+                    )}
+                  </div>
                   <span
                     className={`text-[11px] font-bold px-2 py-0.5 rounded ${
                       q.isCorrect
