@@ -47,9 +47,16 @@ export function PracticeContainer({
   // Config parameters
   const [selectedSubject, setSelectedSubject] = useState<QuestionSubject>('PHYSICS');
   const [selectedChapter, setSelectedChapter] = useState<string>('ALL');
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string>(
-    preferredDifficulty || 'ALL'
-  );
+  const initialDifficulty = (() => {
+    if (!preferredDifficulty) return 'ALL';
+    const u = preferredDifficulty.trim().toUpperCase();
+    if (u === 'MODERATE' || u === 'MEDIUM') return 'MEDIUM';
+    if (u === 'EASY') return 'EASY';
+    if (u === 'HARD') return 'HARD';
+    return 'ALL';
+  })();
+
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string>(initialDifficulty);
   const [questionCount, setQuestionCount] = useState<number>(10);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -62,6 +62,16 @@ export async function getSubjectChapterCatalog(): Promise<SubjectCatalog> {
   return catalog;
 }
 
+export function normalizeDifficulty(diff?: string | null): string | undefined {
+  if (!diff) return undefined;
+  const upper = diff.trim().toUpperCase();
+  if (upper === 'ALL' || upper === 'ANY' || upper === 'MIXED') return undefined;
+  if (upper === 'MODERATE' || upper === 'MEDIUM' || upper === 'MED' || upper === 'STANDARD') return 'MEDIUM';
+  if (upper === 'EASY' || upper === 'EZ' || upper === 'FOUNDATION') return 'EASY';
+  if (upper === 'HARD' || upper === 'DIFFICULT' || upper === 'CHALLENGER' || upper === 'ADVANCED') return 'HARD';
+  return undefined;
+}
+
 /**
  * Retrieves questions for a practice session with strict answer security.
  */
@@ -72,43 +82,65 @@ export async function getQuestionsForPractice(params: {
   count: number;
 }): Promise<ClientSafeQuestion[]> {
   const { subject, chapter, difficulty, count = 10 } = params;
+  const normalizedDiff = normalizeDifficulty(difficulty);
 
-  const where: Record<string, unknown> = {
+  const baseWhere: Record<string, unknown> = {
     type: 'MCQ',
   };
 
-  if (subject) where.subject = subject;
+  if (subject) baseWhere.subject = subject;
   if (chapter && chapter !== 'ALL') {
-    where.chapter = chapter;
-  }
-  if (difficulty && difficulty !== 'ALL') {
-    where.difficulty = difficulty.toUpperCase();
+    baseWhere.chapter = chapter;
   }
 
-  // Fetch candidate questions
-  const questions = await prisma.question.findMany({
-    where,
-    take: count * 3, // Sample pool for pseudo-random selection
-    select: {
-      id: true,
-      text: true,
-      subject: true,
-      chapter: true,
-      topic: true,
-      year: true,
-      paperTitle: true,
-      difficulty: true,
-      options: {
-        orderBy: { position: 'asc' },
-        select: {
-          id: true,
-          label: true,
-          text: true,
-          position: true,
-        },
+  const whereWithDiff = normalizedDiff
+    ? { ...baseWhere, difficulty: normalizedDiff }
+    : baseWhere;
+
+  const selectFields = {
+    id: true,
+    text: true,
+    subject: true,
+    chapter: true,
+    topic: true,
+    year: true,
+    paperTitle: true,
+    difficulty: true,
+    options: {
+      orderBy: { position: 'asc' as const },
+      select: {
+        id: true,
+        label: true,
+        text: true,
+        position: true,
       },
     },
+  };
+
+  // 1. Fetch candidate questions with difficulty filter (if requested)
+  let questions = await prisma.question.findMany({
+    where: whereWithDiff,
+    take: count * 4,
+    select: selectFields,
   });
+
+  // 2. If filtered difficulty returned 0 questions (e.g. rare chapter combo), fallback to base chapter/subject
+  if (questions.length === 0 && normalizedDiff) {
+    questions = await prisma.question.findMany({
+      where: baseWhere,
+      take: count * 4,
+      select: selectFields,
+    });
+  }
+
+  // 3. If still 0 (e.g. rare chapter mismatch), fallback to subject
+  if (questions.length === 0 && subject) {
+    questions = await prisma.question.findMany({
+      where: { type: 'MCQ', subject },
+      take: count * 4,
+      select: selectFields,
+    });
+  }
 
   // Shuffle and slice to desired count
   const shuffled = questions.sort(() => 0.5 - Math.random()).slice(0, count);
