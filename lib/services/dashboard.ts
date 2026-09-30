@@ -377,11 +377,22 @@ export async function getDashboardData(clerkUserId: string): Promise<DashboardDa
     createdAt: s.createdAt.toISOString(),
   }));
 
-  // Recommended practice target
+  // Recommended practice target (strictly dynamic from user history)
   const mostRecentSession = recentSessionsData[0];
-  const targetSubject = mostRecentSession?.subject || 'PHYSICS';
-  const targetChapter = mostRecentSession?.chapter || null;
-  const actionText = targetChapter ? `Practice ${targetChapter}` : `Continue ${targetSubject.charAt(0) + targetSubject.slice(1).toLowerCase()}`;
+  let actionText = 'Start practicing';
+  let targetSubject: QuestionSubject = 'PHYSICS';
+  let targetChapter: string | null = null;
+
+  if (mostRecentSession) {
+    targetSubject = mostRecentSession.subject || 'PHYSICS';
+    targetChapter = mostRecentSession.chapter || null;
+    if (mostRecentSession.subject) {
+      const sName = mostRecentSession.subject.charAt(0) + mostRecentSession.subject.slice(1).toLowerCase();
+      actionText = `Continue ${sName}`;
+    } else {
+      actionText = 'Continue practicing';
+    }
+  }
 
   return {
     profile: {
