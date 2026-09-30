@@ -5,7 +5,6 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import Image from "next/image";
 import { Show, UserButton } from "@clerk/nextjs";
-import { Coffee, Heart, Sparkles } from "lucide-react";
 
 const PlasmaWave = dynamic(
   () => import("@/components/PlasmaWave/PlasmaWave"),
@@ -614,49 +613,38 @@ export default function Home() {
           </div>
         </section>
 
-        {/* SUPPORT / BUY ME A COFFEE SECTION */}
-        <section id="support" className="py-20 px-4 sm:px-6 lg:px-8 border-t border-white/[0.06] relative isolate overflow-hidden">
-          {/* Subtle Ambient Background Glow */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[#ff9e4f]/5 blur-3xl rounded-full pointer-events-none -z-10" />
-
-          <div className="max-w-xl mx-auto text-center space-y-6">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#ff9e4f]/10 border border-[#ff9e4f]/25 text-[#ff9e4f] text-xs font-semibold tracking-wide">
-              <Coffee className="w-3.5 h-3.5" />
-              <span>Fuel the Build</span>
+        {/* SUPPORT CRACKR SECTION */}
+        <section id="support" className="py-24 px-4 sm:px-6 lg:px-8 border-t border-white/[0.06]">
+          <div className="max-w-md mx-auto text-center space-y-6">
+            <div className="text-[11px] font-semibold text-[#578EF5] uppercase tracking-widest">
+              Support Crackr
             </div>
 
-            <div className="space-y-2">
-              <h2 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">
-                Fuel the Late Night Code &amp; JEE Prep
+            <div className="space-y-3">
+              <h2 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">
+                Help keep Crackr running.
               </h2>
-              <p className="text-sm text-zinc-400 max-w-md mx-auto leading-relaxed">
-                Crackr is built with relentless focus to make JEE practice fast, clean, and distraction-free. 
-                If it helped you crack a concept, feel free to buy a coffee to keep servers running!
+              <p className="text-sm text-zinc-400 leading-relaxed font-normal">
+                Crackr is a small independent project built to make JEE practice a little better. If it&apos;s useful to you, you can help me keep the lights on.
               </p>
             </div>
 
-            {/* Modern Scanner Card */}
-            <div className="relative inline-block mx-auto mt-4 group">
-              <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-[#ff9e4f]/30 via-[#16cfd9]/30 to-[#ff9e4f]/30 opacity-70 blur-lg group-hover:opacity-100 transition duration-500" />
-              
-              <div className="relative rounded-2xl bg-[#0c0e14] border border-white/[0.12] p-5 sm:p-6 flex flex-col items-center space-y-4 shadow-2xl">
-                {/* QR Container */}
-                <div className="relative w-52 h-52 sm:w-56 sm:h-56 rounded-xl overflow-hidden bg-white/[0.03] p-2 border border-white/[0.08] flex items-center justify-center">
-                  <Image
-                    src="/coffee-qr.png"
-                    alt="Scan to buy me a coffee"
-                    width={220}
-                    height={220}
-                    className="w-full h-full object-contain rounded-lg transition-transform duration-300 group-hover:scale-[1.02]"
-                    priority
-                  />
-                </div>
-
-                <div className="flex items-center gap-2 text-xs font-medium text-zinc-300 pt-1">
-                  <Sparkles className="w-3.5 h-3.5 text-[#ff9e4f]" />
-                  <span>Scan via any UPI / Payment App</span>
-                </div>
+            {/* Clean, Non-Glowing QR Container */}
+            <div className="pt-2 flex flex-col items-center space-y-3">
+              <div className="w-40 h-40 sm:w-44 sm:h-44 p-2 rounded-xl bg-white/[0.02] border border-white/[0.1] flex items-center justify-center">
+                <Image
+                  src="/coffee-qr.png"
+                  alt="Scan to support Crackr"
+                  width={160}
+                  height={160}
+                  className="w-full h-full object-contain rounded-lg"
+                  priority
+                />
               </div>
+
+              <span className="text-[11px] text-zinc-400 font-normal">
+                Scan with any UPI app
+              </span>
             </div>
           </div>
         </section>
