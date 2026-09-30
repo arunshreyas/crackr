@@ -27,6 +27,7 @@ import {
   RotateCcw,
   Sparkles,
 } from 'lucide-react';
+import { MathRenderer } from '@/components/ui/MathRenderer';
 
 interface PracticeContainerProps {
   catalog: SubjectCatalog;
@@ -408,8 +409,8 @@ export function PracticeContainer({
             )}
 
             {/* Question Text */}
-            <div className="text-base sm:text-lg font-normal text-zinc-100 leading-relaxed whitespace-pre-wrap">
-              {currentQuestion.text}
+            <div className="text-base sm:text-lg font-normal text-zinc-100 leading-relaxed">
+              <MathRenderer content={currentQuestion.text} />
             </div>
           </div>
 
@@ -456,9 +457,9 @@ export function PracticeContainer({
                     {opt.label}
                   </span>
 
-                  <span className="text-sm pt-0.5 leading-relaxed whitespace-pre-wrap">
-                    {opt.text}
-                  </span>
+                  <div className="text-sm pt-0.5 leading-relaxed flex-1">
+                    <MathRenderer content={opt.text} inline />
+                  </div>
                 </button>
               );
             })}
@@ -493,9 +494,9 @@ export function PracticeContainer({
               </div>
 
               {answerResult.explanation && (
-                <div className="pt-2 border-t border-white/[0.08] text-xs text-zinc-300 leading-relaxed whitespace-pre-wrap">
+                <div className="pt-2 border-t border-white/[0.08] text-xs text-zinc-300 leading-relaxed">
                   <span className="font-semibold block text-white mb-1">Explanation:</span>
-                  {answerResult.explanation}
+                  <MathRenderer content={answerResult.explanation} />
                 </div>
               )}
             </div>
@@ -640,9 +641,9 @@ export function PracticeContainer({
                   </span>
                 </div>
 
-                <p className="text-xs text-zinc-200 leading-relaxed line-clamp-2">
-                  {q.text}
-                </p>
+                <div className="text-xs text-zinc-200 leading-relaxed">
+                  <MathRenderer content={q.text} />
+                </div>
 
                 <div className="text-[11px] text-zinc-400 pt-1">
                   Your Answer:{' '}
@@ -659,7 +660,7 @@ export function PracticeContainer({
 
                 {q.explanation && (
                   <div className="pt-2 text-[11px] text-zinc-400 border-t border-white/[0.04]">
-                    {q.explanation}
+                    <MathRenderer content={q.explanation} />
                   </div>
                 )}
               </div>
