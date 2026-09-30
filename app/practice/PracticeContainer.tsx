@@ -405,6 +405,19 @@ export function PracticeContainer({
 
         {/* Question Statement Card */}
         <div className="rounded-2xl border border-white/[0.08] bg-[#0C0E14] p-6 sm:p-8 space-y-6">
+          {error && (
+            <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-400 flex items-center justify-between">
+              <span>{error}</span>
+              <button
+                type="button"
+                onClick={() => setError(null)}
+                className="text-red-300 font-bold hover:underline ml-2"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
           <div className="space-y-3">
             {currentQuestion.paperTitle && (
               <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wide px-2 py-0.5 rounded bg-white/[0.04] border border-white/[0.06] inline-block">

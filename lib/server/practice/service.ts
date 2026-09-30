@@ -138,16 +138,43 @@ export async function submitPracticeAnswer(params: {
     throw new Error('SESSION_COMPLETED: This session has already ended.');
   }
 
-  // 2. Prevent duplicate answer submission for same question in session
+  // 2. Prevent duplicate answer submission or return existing result idempotently
   const existingAnswer = await prisma.quizAnswer.findFirst({
     where: {
       sessionId,
       questionId,
     },
+    include: {
+      question: {
+        select: {
+          id: true,
+          subject: true,
+          chapter: true,
+          topic: true,
+          correctOption: true,
+          explanation: true,
+        },
+      },
+    },
   });
 
-  if (existingAnswer) {
-    throw new Error('DUPLICATE_ANSWER: Question already answered in this session.');
+  if (existingAnswer && existingAnswer.question) {
+    const isCorrect = existingAnswer.isCorrect;
+    const xpAmount =
+      XP_CONFIG.QUESTION_ANSWERED + (isCorrect ? XP_CONFIG.QUESTION_CORRECT_BONUS : 0);
+    return {
+      isCorrect,
+      correctOption: existingAnswer.question.correctOption,
+      explanation: existingAnswer.question.explanation,
+      topic: existingAnswer.question.topic || existingAnswer.question.chapter,
+      chapter: existingAnswer.question.chapter,
+      subject: existingAnswer.question.subject,
+      xpEarned: xpAmount,
+      newTotalXp: profile.xp,
+      newLevel: profile.level,
+      leveledUp: false,
+      streak: profile.currentStreak,
+    };
   }
 
   // 3. Fetch canonical question and evaluate correctness
