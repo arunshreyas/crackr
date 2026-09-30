@@ -49,7 +49,7 @@ export function AppSidebar() {
 
   const secondaryNav = [
     { href: '/settings', label: 'Settings', icon: Settings },
-    { href: '/onboarding', label: 'Profile', icon: User },
+    { href: '/profile', label: 'Profile', icon: User },
   ];
 
   return (
@@ -116,12 +116,12 @@ export function AppSidebar() {
           );
         })}
         <Link
-          href="/onboarding"
+          href="/profile"
           className={`flex flex-col items-center gap-1 py-1 px-3 rounded-lg text-[10px] font-medium transition-colors ${
-            pathname === '/onboarding' ? 'text-[#FF9D50] font-semibold' : 'text-zinc-400 hover:text-[#FFF9D8]'
+            pathname === '/profile' ? 'text-[#FF9D50] font-semibold' : 'text-zinc-400 hover:text-[#FFF9D8]'
           }`}
         >
-          <User className={`w-4 h-4 ${pathname === '/onboarding' ? 'text-[#FF9D50]' : 'text-zinc-400'}`} />
+          <User className={`w-4 h-4 ${pathname === '/profile' ? 'text-[#FF9D50]' : 'text-zinc-400'}`} />
           <span>Profile</span>
         </Link>
       </nav>

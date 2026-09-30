@@ -39,6 +39,8 @@ model UserProfile {
   
   sessions       QuizSession[]
   answers        QuizAnswer[]
+  xpTransactions XPTransaction[]
+  achievements   UserAchievement[]
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -167,5 +169,46 @@ model QuizAnswer {
   @@index([createdAt])
   @@index([isCorrect])
 }
+
+model XPTransaction {
+  id        String       @id @default(cuid())
+  userId    String
+  user      UserProfile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount    Int
+  reason    String       @db.VarChar(255)
+  sessionId String?
+  createdAt DateTime     @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([sessionId])
+}
+
+model Achievement {
+  id               String            @id @default(cuid())
+  code             String            @unique @db.VarChar(100)
+  title            String            @db.VarChar(255)
+  description      String            @db.Text
+  icon             String            @db.VarChar(50)
+  xpReward         Int               @default(50)
+  category         String            @db.VarChar(50)
+  requirementValue Int               @default(1)
+  userAchievements UserAchievement[]
+  createdAt        DateTime          @default(now())
+}
+
+model UserAchievement {
+  id            String      @id @default(cuid())
+  userId        String
+  user          UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  unlockedAt    DateTime    @default(now())
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@index([achievementId])
+}
+
 
  
