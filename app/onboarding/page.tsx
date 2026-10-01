@@ -1,4 +1,4 @@
-import { currentUser } from '@clerk/nextjs/server';
+import { auth, clerkClient } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/server/db';
 import { OnboardingForm } from './OnboardingForm';
@@ -7,26 +7,41 @@ import Link from 'next/link';
 export const dynamic = 'force-dynamic';
 
 export default async function OnboardingPage() {
-  const user = await currentUser();
+  const { userId } = await auth();
 
-  if (!user) {
+  if (!userId) {
     redirect('/sign-in');
   }
 
   // Check if profile already completed
   const existingProfile = await prisma.userProfile.findUnique({
-    where: { clerkId: user.id },
+    where: { clerkId: userId },
   });
 
   if (existingProfile?.onboardingCompleted) {
     redirect('/dashboard');
   }
 
-  const initialEmail = user.emailAddresses?.[0]?.emailAddress || '';
-  const initialName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
-  const suggestedUsername =
-    user.username ||
-    (user.firstName ? `${user.firstName.toLowerCase()}_${user.id.slice(-4).toLowerCase()}` : '');
+  let initialEmail = existingProfile?.email || '';
+  let initialName = existingProfile?.name || '';
+  let suggestedUsername = existingProfile?.username || '';
+
+  try {
+    const client = await clerkClient();
+    const clerkUser = await client.users.getUser(userId);
+    if (clerkUser) {
+      initialEmail = clerkUser.emailAddresses?.[0]?.emailAddress || initialEmail;
+      const fullName = `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim();
+      if (fullName) initialName = fullName;
+      if (clerkUser.username) {
+        suggestedUsername = clerkUser.username;
+      } else if (clerkUser.firstName) {
+        suggestedUsername = `${clerkUser.firstName.toLowerCase()}_${userId.slice(-4).toLowerCase()}`;
+      }
+    }
+  } catch {
+    // Fallback smoothly if clerkClient user fetch fails
+  }
 
   return (
     <div className="min-h-screen bg-[#080a0e] text-zinc-100 flex flex-col justify-between py-10 px-4 sm:px-6">

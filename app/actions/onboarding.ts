@@ -1,6 +1,6 @@
 'use server';
 
-import { currentUser } from '@clerk/nextjs/server';
+import { auth, clerkClient } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/server/db';
 import { Stream } from '@prisma/client';
 
@@ -16,14 +16,18 @@ export type OnboardingInput = {
 
 export async function submitOnboarding(data: OnboardingInput) {
   try {
-    const user = await currentUser();
-    if (!user) {
+    const { userId } = await auth();
+    if (!userId) {
       return { success: false, error: 'Unauthorized. Please sign in.' };
     }
 
-    const email = user.emailAddresses?.[0]?.emailAddress;
-    if (!email) {
-      return { success: false, error: 'Valid email required from authentication provider.' };
+    let email = '';
+    try {
+      const client = await clerkClient();
+      const clerkUser = await client.users.getUser(userId);
+      email = clerkUser.emailAddresses?.[0]?.emailAddress || '';
+    } catch (e) {
+      console.warn('Could not fetch user details from Clerk client:', e);
     }
 
     // Clean and validate username
@@ -37,15 +41,15 @@ export async function submitOnboarding(data: OnboardingInput) {
       where: { username },
     });
 
-    if (existingUser && existingUser.clerkId !== user.id) {
+    if (existingUser && existingUser.clerkId !== userId) {
       return { success: false, error: 'This username is already taken. Please choose another.' };
     }
 
     // Upsert user profile in database
     const profile = await prisma.userProfile.upsert({
-      where: { clerkId: user.id },
+      where: { clerkId: userId },
       update: {
-        email,
+        ...(email ? { email } : {}),
         name: data.name.trim(),
         username,
         school: data.school.trim(),
@@ -56,8 +60,8 @@ export async function submitOnboarding(data: OnboardingInput) {
         onboardingCompleted: true,
       },
       create: {
-        clerkId: user.id,
-        email,
+        clerkId: userId,
+        email: email || `${username}@user.crackr`,
         name: data.name.trim(),
         username,
         school: data.school.trim(),
@@ -81,11 +85,11 @@ export async function submitOnboarding(data: OnboardingInput) {
 
 export async function checkOnboardingStatus() {
   try {
-    const user = await currentUser();
-    if (!user) return { isAuthenticated: false, onboardingCompleted: false };
+    const { userId } = await auth();
+    if (!userId) return { isAuthenticated: false, onboardingCompleted: false };
 
     const profile = await prisma.userProfile.findUnique({
-      where: { clerkId: user.id },
+      where: { clerkId: userId },
     });
 
     return {
