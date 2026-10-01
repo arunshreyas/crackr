@@ -24,13 +24,28 @@ export default function SignUpPage() {
       </div>
 
       {/* Clerk SignUp Component */}
-      <SignUp
-        path="/sign-up"
-        routing="path"
-        signInUrl="/sign-in"
-        fallbackRedirectUrl="/onboarding"
-        forceRedirectUrl="/onboarding"
-      />
+      {!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? (
+        <div className="max-w-md w-full p-6 rounded-2xl bg-[#0C0E14] border border-amber-500/30 text-center space-y-3">
+          <p className="text-sm font-semibold text-amber-300">Clerk Configuration Required</p>
+          <p className="text-xs text-zinc-400 leading-relaxed">
+            <code className="text-white bg-white/[0.08] px-1.5 py-0.5 rounded font-mono">NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY</code> is not configured in your production environment variables (e.g. Vercel).
+          </p>
+          <div className="pt-2 text-[11px] text-zinc-500 text-left bg-black/40 p-3 rounded-lg border border-white/[0.06] space-y-1 font-mono">
+            <p>1. Go to Vercel Dashboard → Project Settings → Environment Variables</p>
+            <p>2. Add: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = pk_live_...</p>
+            <p>3. Add: CLERK_SECRET_KEY = sk_live_...</p>
+            <p>4. Redeploy your latest deployment.</p>
+          </div>
+        </div>
+      ) : (
+        <SignUp
+          path="/sign-up"
+          routing="path"
+          signInUrl="/sign-in"
+          fallbackRedirectUrl="/onboarding"
+          forceRedirectUrl="/onboarding"
+        />
+      )}
     </div>
   );
 }
