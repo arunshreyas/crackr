@@ -39,6 +39,27 @@ interface PracticeContainerProps {
 
 type PracticeState = 'CONFIG' | 'ACTIVE' | 'RESULTS';
 
+const PracticeTimer = React.memo(function PracticeTimer({ startTime }: { startTime: number }) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startTime) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [startTime]);
+
+  const minutes = Math.floor(elapsed / 60);
+  const seconds = elapsed % 60;
+
+  return (
+    <div className="flex items-center gap-1 font-mono text-zinc-300">
+      <Clock className="w-3 h-3 text-zinc-500" />
+      <span>{`${minutes}:${seconds < 10 ? '0' : ''}${seconds}`}</span>
+    </div>
+  );
+});
+
 export function PracticeContainer({
   catalog,
   preferredDifficulty,
@@ -84,22 +105,10 @@ export function PracticeContainer({
   const [answerResult, setAnswerResult] = useState<AnswerSubmissionResult | null>(null);
   const [startTime, setStartTime] = useState<number>(Date.now());
   const [questionStartTime, setQuestionStartTime] = useState<number>(Date.now());
-  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
 
   // Results state
   const [resultsSummary, setResultsSummary] = useState<PracticeSessionSummary | null>(null);
   const [expandedQuestions, setExpandedQuestions] = useState<Record<string, boolean>>({});
-
-  // Timer effect
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (screenState === 'ACTIVE') {
-      interval = setInterval(() => {
-        setElapsedSeconds(Math.floor((Date.now() - startTime) / 1000));
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [screenState, startTime]);
 
   // Keyboard shortcuts during active practice
   useEffect(() => {
@@ -161,7 +170,6 @@ export function PracticeContainer({
       setAnswerResult(null);
       setStartTime(Date.now());
       setQuestionStartTime(Date.now());
-      setElapsedSeconds(0);
       setExpandedQuestions({});
       setScreenState('ACTIVE');
     } else {
@@ -232,11 +240,6 @@ export function PracticeContainer({
 
   const currentQuestion = questions[currentIndex];
   const progressPct = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0;
-
-  // Format timer
-  const minutes = Math.floor(elapsedSeconds / 60);
-  const seconds = elapsedSeconds % 60;
-  const timeFormatted = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
 
   // Generate dynamic data-driven session takeaway summary
   const generateDynamicSummary = (summary: PracticeSessionSummary) => {
@@ -450,10 +453,7 @@ export function PracticeContainer({
             <span className="font-mono">
               Q{currentIndex + 1} of {questions.length}
             </span>
-            <div className="flex items-center gap-1 font-mono text-zinc-300">
-              <Clock className="w-3 h-3 text-zinc-500" />
-              <span>{timeFormatted}</span>
-            </div>
+            <PracticeTimer startTime={startTime} />
             <button
               type="button"
               onClick={() => {

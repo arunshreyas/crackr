@@ -1,7 +1,6 @@
 import { Suspense } from 'react';
-import { currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
-import { prisma } from '@/lib/server/db';
+import { getAuthenticatedUser } from '@/lib/server/auth';
 import { getSubjectChapterCatalog } from '@/lib/server/questions/service';
 import { AppSidebar } from '@/components/dashboard/AppSidebar';
 import { PracticeContainer } from './PracticeContainer';
@@ -9,24 +8,19 @@ import { PracticeContainer } from './PracticeContainer';
 export const dynamic = 'force-dynamic';
 
 export default async function PracticePage() {
-  const user = await currentUser();
+  const authCtx = await getAuthenticatedUser();
 
   // 1. Unauthenticated check -> /sign-in
-  if (!user) {
+  if (!authCtx) {
     redirect('/sign-in');
   }
 
-  // 2. Query UserProfile from database via Prisma (server-only)
-  const profile = await prisma.userProfile.findUnique({
-    where: { clerkId: user.id },
-  });
-
-  // 3. Incomplete onboarding check -> /onboarding
-  if (!profile || !profile.onboardingCompleted) {
+  // 2. Incomplete onboarding check -> /onboarding
+  if (!authCtx.profile.onboardingCompleted) {
     redirect('/onboarding');
   }
 
-  // 4. Load dynamic chapter & question catalog from server-only DB query
+  // 3. Load cached chapter & question catalog from server-only service
   const catalog = await getSubjectChapterCatalog();
 
   return (
@@ -40,7 +34,7 @@ export default async function PracticePage() {
           <Suspense fallback={<div className="p-8 text-center text-zinc-400 text-sm">Loading practice workstation...</div>}>
             <PracticeContainer
               catalog={catalog}
-              preferredDifficulty={profile.preferredDifficulty}
+              preferredDifficulty={authCtx.profile.preferredDifficulty}
             />
           </Suspense>
         </main>

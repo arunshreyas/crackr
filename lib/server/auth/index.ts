@@ -1,5 +1,5 @@
 import 'server-only';
-import { currentUser } from '@clerk/nextjs/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/server/db';
 import { UserProfile } from '@prisma/client';
 
@@ -10,25 +10,22 @@ export interface AuthenticatedUserContext {
 }
 
 /**
- * Resolves the authenticated Clerk identity and links to the canonical UserProfile.
- * Never relies on client-provided IDs.
+ * Resolves the authenticated Clerk identity via local JWT verification (0ms network overhead)
+ * and links to the canonical UserProfile in PostgreSQL.
  */
 export async function getAuthenticatedUser(): Promise<AuthenticatedUserContext | null> {
-  const clerkUser = await currentUser();
-  if (!clerkUser) return null;
+  const { userId } = await auth();
+  if (!userId) return null;
 
   const profile = await prisma.userProfile.findUnique({
-    where: { clerkId: clerkUser.id },
+    where: { clerkId: userId },
   });
 
   if (!profile) return null;
 
-  const email =
-    clerkUser.emailAddresses?.[0]?.emailAddress || profile.email || '';
-
   return {
-    clerkId: clerkUser.id,
-    email,
+    clerkId: userId,
+    email: profile.email || '',
     profile,
   };
 }
@@ -37,12 +34,12 @@ export async function getAuthenticatedUser(): Promise<AuthenticatedUserContext |
  * Throws an error if the user is unauthenticated or has not completed onboarding.
  */
 export async function requireAuthenticatedUser(): Promise<AuthenticatedUserContext> {
-  const auth = await getAuthenticatedUser();
-  if (!auth) {
+  const authCtx = await getAuthenticatedUser();
+  if (!authCtx) {
     throw new Error('UNAUTHORIZED: You must be signed in to perform this action.');
   }
-  if (!auth.profile.onboardingCompleted) {
+  if (!authCtx.profile.onboardingCompleted) {
     throw new Error('ONBOARDING_REQUIRED: Profile onboarding must be completed.');
   }
-  return auth;
+  return authCtx;
 }

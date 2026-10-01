@@ -319,11 +319,18 @@ export function formatJeeContent(raw: string): string {
     formatted = formatted.replace(tokenId, rendered);
   }
 
+  mathHtmlCache.set(raw, formatted);
   return formatted;
 }
 
-export function MathRenderer({ content, className = '', inline = false }: MathRendererProps) {
-  const html = useMemo(() => formatJeeContent(content), [content]);
+const mathHtmlCache = new Map<string, string>();
+
+function MathRendererBase({ content, className = '', inline = false }: MathRendererProps) {
+  const html = useMemo(() => {
+    const cached = mathHtmlCache.get(content);
+    if (cached) return cached;
+    return formatJeeContent(content);
+  }, [content]);
 
   if (inline) {
     return (
@@ -341,3 +348,5 @@ export function MathRenderer({ content, className = '', inline = false }: MathRe
     />
   );
 }
+
+export const MathRenderer = React.memo(MathRendererBase);
