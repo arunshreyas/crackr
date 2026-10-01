@@ -33,10 +33,19 @@ export interface ClientSafeQuestion {
   // NOTE: correctOption and explanation are NEVER returned here
 }
 
+let cachedCatalog: SubjectCatalog | null = null;
+let catalogCacheTime = 0;
+const CATALOG_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
 /**
- * Returns available chapters and question counts grouped by subject.
+ * Returns available chapters and question counts grouped by subject with memory caching.
  */
 export async function getSubjectChapterCatalog(): Promise<SubjectCatalog> {
+  const now = Date.now();
+  if (cachedCatalog && now - catalogCacheTime < CATALOG_CACHE_TTL_MS) {
+    return cachedCatalog;
+  }
+
   const groups = await prisma.question.groupBy({
     by: ['subject', 'chapter'],
     where: { type: 'MCQ' },
@@ -59,6 +68,8 @@ export async function getSubjectChapterCatalog(): Promise<SubjectCatalog> {
     }
   }
 
+  cachedCatalog = catalog;
+  catalogCacheTime = now;
   return catalog;
 }
 

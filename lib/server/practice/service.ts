@@ -78,16 +78,18 @@ export async function startPracticeSession(params: {
   difficulty?: string;
   questionCount?: number;
 }): Promise<StartPracticeResult> {
-  const { profile } = await requireAuthenticatedUser();
   const count = params.questionCount && params.questionCount > 0 ? params.questionCount : 10;
 
-  // Retrieve questions safely without answers
-  const questions = await getQuestionsForPractice({
-    subject: params.subject,
-    chapter: params.chapter,
-    difficulty: params.difficulty,
-    count,
-  });
+  // Retrieve auth profile and questions concurrently to minimize startup latency
+  const [{ profile }, questions] = await Promise.all([
+    requireAuthenticatedUser(),
+    getQuestionsForPractice({
+      subject: params.subject,
+      chapter: params.chapter,
+      difficulty: params.difficulty,
+      count,
+    }),
+  ]);
 
   if (questions.length === 0) {
     throw new Error('NO_QUESTIONS_FOUND: No matching questions in question bank.');

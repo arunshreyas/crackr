@@ -622,7 +622,7 @@ export default function Home() {
         {/* SUPPORT CRACKR SECTION */}
         <section id="support" className="py-24 px-4 sm:px-6 lg:px-8 border-t border-white/[0.06]">
           <div className="max-w-md mx-auto text-center space-y-6">
-            <div className="text-[11px] font-semibold text-[#578EF5] uppercase tracking-widest">
+            <div className="text-[11px] font-semibold text-[#ff9e4f] uppercase tracking-widest">
               Support Crackr
             </div>
 

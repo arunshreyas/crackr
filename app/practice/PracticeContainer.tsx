@@ -303,27 +303,30 @@ export function PracticeContainer({
             <div className="grid grid-cols-3 gap-2">
               {(
                 [
-                  { key: 'PHYSICS', name: 'Physics' },
-                  { key: 'CHEMISTRY', name: 'Chemistry' },
-                  { key: 'MATHEMATICS', name: 'Mathematics' },
+                  { key: 'PHYSICS', name: 'Physics', bg: 'bg-[#FF9D50]', text: 'text-[#080A0E]', hoverBorder: 'hover:border-[#FF9D50]/40' },
+                  { key: 'CHEMISTRY', name: 'Chemistry', bg: 'bg-[#20C4D0]', text: 'text-[#080A0E]', hoverBorder: 'hover:border-[#20C4D0]/40' },
+                  { key: 'MATHEMATICS', name: 'Mathematics', bg: 'bg-[#50D97A]', text: 'text-[#080A0E]', hoverBorder: 'hover:border-[#50D97A]/40' },
                 ] as const
-              ).map((s) => (
-                <button
-                  key={s.key}
-                  type="button"
-                  onClick={() => handleSubjectChange(s.key)}
-                  className={`py-2.5 px-3 text-left rounded-lg text-xs font-medium transition-all ${
-                    selectedSubject === s.key
-                      ? 'bg-[#2373F4] text-white font-semibold'
-                      : 'bg-white/[0.03] text-zinc-300 hover:bg-white/[0.06] border border-white/[0.06]'
-                  }`}
-                >
-                  <span className="block">{s.name}</span>
-                  <span className={`text-[10px] mt-0.5 block ${selectedSubject === s.key ? 'text-white/80' : 'text-zinc-500'}`}>
-                    {catalog[s.key]?.length || 0} chapters
-                  </span>
-                </button>
-              ))}
+              ).map((s) => {
+                const isSelected = selectedSubject === s.key;
+                return (
+                  <button
+                    key={s.key}
+                    type="button"
+                    onClick={() => handleSubjectChange(s.key)}
+                    className={`py-2.5 px-3 text-left rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                      isSelected
+                        ? `${s.bg} ${s.text} font-semibold shadow-sm`
+                        : `bg-white/[0.03] text-zinc-300 hover:bg-white/[0.06] border border-white/[0.06] ${s.hoverBorder}`
+                    }`}
+                  >
+                    <span className="block">{s.name}</span>
+                    <span className={`text-[10px] mt-0.5 block ${isSelected ? 'text-[#080A0E]/75 font-medium' : 'text-zinc-500'}`}>
+                      {catalog[s.key]?.length || 0} chapters
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -333,7 +336,7 @@ export function PracticeContainer({
             <select
               value={selectedChapter}
               onChange={(e) => setSelectedChapter(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-lg bg-[#0C0E14] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-[#2373F4] transition-colors"
+              className="w-full px-3 py-2.5 rounded-lg bg-[#0C0E14] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-[#FF9D50] transition-colors"
             >
               <option value="ALL">All Chapters (Mixed Practice)</option>
               {availableChapters.map((c) => (
@@ -356,7 +359,7 @@ export function PracticeContainer({
                     onClick={() => setQuestionCount(count)}
                     className={`py-2 rounded-lg text-xs font-medium transition-all ${
                       questionCount === count
-                        ? 'bg-[#2373F4] text-white font-semibold'
+                        ? 'bg-[#FF9D50] text-[#080A0E] font-semibold'
                         : 'bg-white/[0.03] text-zinc-300 hover:bg-white/[0.06] border border-white/[0.06]'
                     }`}
                   >
@@ -376,7 +379,7 @@ export function PracticeContainer({
                     onClick={() => setSelectedDifficulty(diff)}
                     className={`py-2 rounded-lg text-xs font-medium transition-all ${
                       selectedDifficulty === diff
-                        ? 'bg-[#2373F4] text-white font-semibold'
+                        ? 'bg-[#FF9D50] text-[#080A0E] font-semibold'
                         : 'bg-white/[0.03] text-zinc-300 hover:bg-white/[0.06] border border-white/[0.06]'
                     }`}
                   >
@@ -397,7 +400,7 @@ export function PracticeContainer({
               type="button"
               disabled={loading}
               onClick={() => handleStartSession()}
-              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-[#2373F4] hover:bg-[#1E64D8] text-white text-xs font-medium transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-[#FF9D50] hover:bg-[#FFAA66] text-[#080A0E] text-xs font-semibold tracking-wide transition-all shadow-sm active:scale-[0.99] disabled:opacity-50 cursor-pointer"
             >
               {loading ? (
                 <>
@@ -426,7 +429,15 @@ export function PracticeContainer({
         {/* Compact Header */}
         <div className="flex items-center justify-between text-xs pb-3 border-b border-white/[0.06]">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-white">
+            <span
+              className={`font-semibold ${
+                currentQuestion.subject === 'PHYSICS'
+                  ? 'text-[#FF9D50]'
+                  : currentQuestion.subject === 'CHEMISTRY'
+                  ? 'text-[#20C4D0]'
+                  : 'text-[#50D97A]'
+              }`}
+            >
               {currentQuestion.subject.charAt(0) + currentQuestion.subject.slice(1).toLowerCase()}
             </span>
             <span className="text-zinc-600">/</span>
@@ -450,7 +461,7 @@ export function PracticeContainer({
                   setScreenState('CONFIG');
                 }
               }}
-              className="text-zinc-500 hover:text-zinc-300 transition-colors"
+              className="text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
             >
               Exit
             </button>
@@ -460,7 +471,13 @@ export function PracticeContainer({
         {/* Minimal Progress Bar */}
         <div className="w-full h-0.5 bg-white/[0.06]">
           <div
-            className="h-full bg-[#2373F4] transition-all duration-200"
+            className={`h-full transition-all duration-200 ${
+              currentQuestion.subject === 'PHYSICS'
+                ? 'bg-[#FF9D50]'
+                : currentQuestion.subject === 'CHEMISTRY'
+                ? 'bg-[#20C4D0]'
+                : 'bg-[#50D97A]'
+            }`}
             style={{ width: `${progressPct}%` }}
           />
         </div>
@@ -498,10 +515,23 @@ export function PracticeContainer({
               const isCorrectAnswer = answerResult?.correctOption === opt.label;
               const isWrongSelected = isSubmitted && isSelected && !answerResult?.isCorrect;
 
+              const isPhysics = currentQuestion.subject === 'PHYSICS';
+              const isChem = currentQuestion.subject === 'CHEMISTRY';
+              const activeBorderClass = isPhysics
+                ? 'bg-[#FF9D50]/10 border-[#FF9D50]'
+                : isChem
+                ? 'bg-[#20C4D0]/10 border-[#20C4D0]'
+                : 'bg-[#50D97A]/10 border-[#50D97A]';
+              const activeBadgeClass = isPhysics
+                ? 'bg-[#FF9D50] text-[#080A0E]'
+                : isChem
+                ? 'bg-[#20C4D0] text-[#080A0E]'
+                : 'bg-[#50D97A] text-[#080A0E]';
+
               let buttonClass = 'bg-white/[0.02] border-white/[0.06] text-zinc-300 hover:border-white/[0.15]';
 
               if (isSelected && !isSubmitted) {
-                buttonClass = 'bg-[#2373F4]/10 border-[#2373F4] text-white';
+                buttonClass = `${activeBorderClass} text-white`;
               } else if (isCorrectAnswer) {
                 buttonClass = 'bg-emerald-500/10 border-emerald-500/50 text-emerald-300 font-medium';
               } else if (isWrongSelected) {
@@ -516,12 +546,12 @@ export function PracticeContainer({
                   type="button"
                   disabled={isSubmitted}
                   onClick={() => setSelectedOption(opt.label)}
-                  className={`w-full p-3.5 rounded-lg border text-left flex items-start gap-3 transition-colors ${buttonClass}`}
+                  className={`w-full p-3.5 rounded-lg border text-left flex items-start gap-3 transition-colors cursor-pointer ${buttonClass}`}
                 >
                   <span
                     className={`w-6 h-6 rounded flex items-center justify-center text-xs font-mono shrink-0 ${
                       isSelected && !isSubmitted
-                        ? 'bg-[#2373F4] text-white font-semibold'
+                        ? `${activeBadgeClass} font-bold`
                         : isCorrectAnswer
                         ? 'bg-emerald-500 text-black font-bold'
                         : isWrongSelected
@@ -598,7 +628,7 @@ export function PracticeContainer({
                 type="button"
                 disabled={loading}
                 onClick={handleNextQuestion}
-                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-[#2373F4] hover:bg-[#1E64D8] text-white text-xs font-medium transition-colors"
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-[#FF9D50] hover:bg-[#FFAA66] text-[#080A0E] text-xs font-semibold tracking-wide transition-all shadow-sm active:scale-[0.99] cursor-pointer"
               >
                 {loading ? (
                   <>
@@ -617,7 +647,7 @@ export function PracticeContainer({
                 type="button"
                 disabled={!selectedOption || submitting}
                 onClick={handleSubmitAnswer}
-                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-[#2373F4] hover:bg-[#1E64D8] text-white text-xs font-medium transition-colors disabled:opacity-40"
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-[#FF9D50] hover:bg-[#FFAA66] text-[#080A0E] text-xs font-semibold tracking-wide transition-all shadow-sm active:scale-[0.99] disabled:opacity-40 cursor-pointer"
               >
                 {submitting ? (
                   <>
@@ -855,7 +885,7 @@ export function PracticeContainer({
           <button
             type="button"
             onClick={() => setScreenState('CONFIG')}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-xs font-medium text-zinc-300 transition-colors"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-xs font-medium text-zinc-300 transition-colors cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Practice again</span>
@@ -863,7 +893,7 @@ export function PracticeContainer({
 
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg bg-[#2373F4] hover:bg-[#1E64D8] text-white text-xs font-medium transition-colors"
+            className="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg bg-[#FF9D50] hover:bg-[#FFAA66] text-[#080A0E] text-xs font-semibold tracking-wide transition-all shadow-sm active:scale-[0.99]"
           >
             <span>Back to Dashboard</span>
             <ArrowRight className="w-3.5 h-3.5" />
