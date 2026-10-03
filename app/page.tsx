@@ -707,12 +707,12 @@ export default function Home() {
             <a href="#features" className="hover:text-white transition-colors">
               Features
             </a>
-            <a href="#privacy" className="hover:text-white transition-colors">
+            <Link href="/privacy" className="hover:text-white transition-colors">
               Privacy
-            </a>
-            <a href="#terms" className="hover:text-white transition-colors">
+            </Link>
+            <Link href="/terms" className="hover:text-white transition-colors">
               Terms
-            </a>
+            </Link>
           </div>
         </div>
       </footer>

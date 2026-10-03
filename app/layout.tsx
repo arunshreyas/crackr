@@ -15,9 +15,78 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 })
 
+const BASE_URL = 'https://crackrr.vercel.app'
+
 export const metadata: Metadata = {
-  title: 'Crackr — Practice smarter. Get better. Faster.',
-  description: 'AI-assisted adaptive practice engine for JEE, NEET, and competitive exams.',
+  metadataBase: new URL(BASE_URL),
+  title: {
+    default: 'Crackr — JEE MCQ Practice & Diagnostic Mastery',
+    template: '%s | Crackr',
+  },
+  description:
+    'Targeted JEE Main & Advanced practice platform with real PYQs, atomic answer validation, chapter-level diagnostics, and gamified progress tracking.',
+  keywords: [
+    'JEE Main practice',
+    'JEE Advanced questions',
+    'JEE PYQs',
+    'Physics practice',
+    'Chemistry practice',
+    'Mathematics practice',
+    'Crackr',
+  ],
+  authors: [{ name: 'Crackr Team' }],
+  creator: 'Crackr',
+  publisher: 'Crackr',
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    url: BASE_URL,
+    title: 'Crackr — JEE MCQ Practice & Diagnostic Mastery',
+    description:
+      'Practice smarter with verified JEE questions, instant step-by-step diagnostic feedback, and structured mastery tracking.',
+    siteName: 'Crackr',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Crackr — JEE MCQ Practice & Diagnostic Mastery',
+    description:
+      'Practice smarter with verified JEE questions, instant step-by-step diagnostic feedback, and structured mastery tracking.',
+    creator: '@crackrapp',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  alternates: {
+    canonical: BASE_URL,
+  },
+}
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Crackr',
+  applicationCategory: 'EducationalApplication',
+  operatingSystem: 'Any (Web Browser)',
+  offers: {
+    '@type': 'Offer',
+    price: '0',
+    priceCurrency: 'USD',
+  },
+  description:
+    'Targeted JEE Main & Advanced practice engine featuring verified PYQs, chapter mastery diagnostics, and adaptive study tracking.',
 }
 
 export default function RootLayout({
@@ -52,6 +121,12 @@ export default function RootLayout({
       }}
     >
       <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}>
+        <head>
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          />
+        </head>
         <body className="min-h-full flex flex-col bg-[#080a0e] text-zinc-100 font-sans selection:bg-[#ff9e4f]/30 selection:text-[#fff9d9]">
           {children}
         </body>
