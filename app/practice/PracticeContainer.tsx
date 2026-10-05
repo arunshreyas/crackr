@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useTransition } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { QuestionSubject, OptionLabel } from '@prisma/client';
 import {
   SubjectCatalog,
@@ -12,10 +12,13 @@ import {
   startPracticeAction,
   submitAnswerAction,
   completeSessionAction,
+  abandonSessionAction,
 } from '@/app/actions/practice';
 import {
   PracticeSessionSummary,
   AnswerSubmissionResult,
+  ActiveSessionState,
+  ActiveSessionAnswerState,
 } from '@/lib/server/practice/service';
 import {
   ArrowLeft,
@@ -29,12 +32,16 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
+  Play,
+  Trash2,
+  Bookmark,
 } from 'lucide-react';
 import { MathRenderer } from '@/components/ui/MathRenderer';
 
 interface PracticeContainerProps {
   catalog: SubjectCatalog;
   preferredDifficulty: string | null;
+  initialActiveSession?: ActiveSessionState | null;
 }
 
 type PracticeState = 'CONFIG' | 'ACTIVE' | 'RESULTS';
@@ -43,9 +50,11 @@ const PracticeTimer = React.memo(function PracticeTimer({ startTime }: { startTi
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setElapsed(Math.floor((Date.now() - startTime) / 1000));
-    }, 1000);
+    const updateElapsed = () => {
+      setElapsed(Math.max(0, Math.floor((Date.now() - startTime) / 1000)));
+    };
+    updateElapsed();
+    const interval = setInterval(updateElapsed, 1000);
     return () => clearInterval(interval);
   }, [startTime]);
 
@@ -63,8 +72,8 @@ const PracticeTimer = React.memo(function PracticeTimer({ startTime }: { startTi
 export function PracticeContainer({
   catalog,
   preferredDifficulty,
+  initialActiveSession = null,
 }: PracticeContainerProps) {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   const urlSubject = searchParams.get('subject')?.toUpperCase();
@@ -75,6 +84,9 @@ export function PracticeContainer({
 
   const urlChapter = searchParams.get('chapter');
   const initialChapter = urlChapter || 'ALL';
+
+  // Active persistent session from database
+  const [activeSession, setActiveSession] = useState<ActiveSessionState | null>(initialActiveSession);
 
   // Screen state
   const [screenState, setScreenState] = useState<PracticeState>('CONFIG');
@@ -94,6 +106,7 @@ export function PracticeContainer({
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>(initialDifficulty);
   const [questionCount, setQuestionCount] = useState<number>(10);
   const [loading, setLoading] = useState(false);
+  const [abandoning, setAbandoning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Active Session state
@@ -103,12 +116,17 @@ export function PracticeContainer({
   const [selectedOption, setSelectedOption] = useState<OptionLabel | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [answerResult, setAnswerResult] = useState<AnswerSubmissionResult | null>(null);
+  const [sessionAnsweredMap, setSessionAnsweredMap] = useState<Record<string, ActiveSessionAnswerState>>({});
   const [startTime, setStartTime] = useState<number>(Date.now());
   const [questionStartTime, setQuestionStartTime] = useState<number>(Date.now());
 
   // Results state
   const [resultsSummary, setResultsSummary] = useState<PracticeSessionSummary | null>(null);
   const [expandedQuestions, setExpandedQuestions] = useState<Record<string, boolean>>({});
+
+  // Sync state when navigating between questions in an active session
+  const currentQuestion = questions[currentIndex];
+  const progressPct = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0;
 
   // Keyboard shortcuts during active practice
   useEffect(() => {
@@ -135,7 +153,7 @@ export function PracticeContainer({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [screenState, selectedOption, answerResult, submitting, loading]);
+  }, [screenState, selectedOption, answerResult, submitting, loading, currentIndex, questions.length]);
 
   // Available chapters for selected subject
   const availableChapters = catalog[selectedSubject] || [];
@@ -145,7 +163,70 @@ export function PracticeContainer({
     setSelectedChapter('ALL');
   };
 
-  // Start Session Handler
+  // Resume Session Handler (Restores exact database state)
+  const handleResumeSession = (sessionToResume: ActiveSessionState) => {
+    setLoading(true);
+    setError(null);
+
+    const qList = sessionToResume.questions;
+    const targetIdx = sessionToResume.currentQuestionIndex;
+    const answeredMap = sessionToResume.answeredQuestions || {};
+
+    setSessionId(sessionToResume.sessionId);
+    setQuestions(qList);
+    setCurrentIndex(targetIdx);
+    setSessionAnsweredMap(answeredMap);
+
+    const currQ = qList[targetIdx];
+    if (currQ && answeredMap[currQ.id]) {
+      const existing = answeredMap[currQ.id];
+      setSelectedOption(existing.selectedOption);
+      setAnswerResult({
+        isCorrect: existing.isCorrect,
+        correctOption: existing.correctOption,
+        explanation: existing.explanation,
+        topic: currQ.topic || currQ.chapter,
+        chapter: currQ.chapter,
+        subject: currQ.subject,
+        xpEarned: 15,
+        newTotalXp: 0,
+        newLevel: 1,
+        leveledUp: false,
+        streak: 1,
+      });
+    } else {
+      setSelectedOption(null);
+      setAnswerResult(null);
+    }
+
+    // Offset timer so elapsed duration includes prior practice seconds
+    const priorDurationMs = (sessionToResume.durationSeconds || 0) * 1000;
+    setStartTime(Date.now() - priorDurationMs);
+    setQuestionStartTime(Date.now());
+    setExpandedQuestions({});
+    setLoading(false);
+    setScreenState('ACTIVE');
+  };
+
+  // Discard / Abandon Active Session Handler
+  const handleAbandonSession = async (sessId: string) => {
+    setAbandoning(true);
+    setError(null);
+
+    const res = await abandonSessionAction({ sessionId: sessId });
+    setAbandoning(false);
+
+    if (res.success) {
+      setActiveSession(null);
+      setSessionId(null);
+      setQuestions([]);
+      setSessionAnsweredMap({});
+    } else {
+      setError(res.error || 'Failed to discard session.');
+    }
+  };
+
+  // Start New Session Handler
   const handleStartSession = async (customSubject?: QuestionSubject, customChapter?: string) => {
     setLoading(true);
     setError(null);
@@ -163,11 +244,13 @@ export function PracticeContainer({
     setLoading(false);
 
     if (res.success && res.data) {
+      setActiveSession(null);
       setSessionId(res.data.sessionId);
       setQuestions(res.data.questions);
       setCurrentIndex(0);
       setSelectedOption(null);
       setAnswerResult(null);
+      setSessionAnsweredMap({});
       setStartTime(Date.now());
       setQuestionStartTime(Date.now());
       setExpandedQuestions({});
@@ -197,6 +280,18 @@ export function PracticeContainer({
 
     if (res.success && res.data) {
       setAnswerResult(res.data);
+      // Update local answered map
+      setSessionAnsweredMap((prev) => ({
+        ...prev,
+        [currentQuestion.id]: {
+          questionId: currentQuestion.id,
+          selectedOption,
+          isCorrect: res.data!.isCorrect,
+          correctOption: res.data!.correctOption,
+          explanation: res.data!.explanation,
+          timeTakenSeconds: timeTaken,
+        },
+      }));
     } else {
       setError(res.error || 'Failed to submit answer.');
     }
@@ -205,9 +300,32 @@ export function PracticeContainer({
   // Next Question / Complete Session Handler
   const handleNextQuestion = async () => {
     if (currentIndex < questions.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
-      setSelectedOption(null);
-      setAnswerResult(null);
+      const nextIdx = currentIndex + 1;
+      setCurrentIndex(nextIdx);
+
+      const nextQ = questions[nextIdx];
+      const existing = nextQ ? sessionAnsweredMap[nextQ.id] : null;
+
+      if (existing) {
+        setSelectedOption(existing.selectedOption);
+        setAnswerResult({
+          isCorrect: existing.isCorrect,
+          correctOption: existing.correctOption,
+          explanation: existing.explanation,
+          topic: nextQ.topic || nextQ.chapter,
+          chapter: nextQ.chapter,
+          subject: nextQ.subject,
+          xpEarned: 15,
+          newTotalXp: 0,
+          newLevel: 1,
+          leveledUp: false,
+          streak: 1,
+        });
+      } else {
+        setSelectedOption(null);
+        setAnswerResult(null);
+      }
+
       setQuestionStartTime(Date.now());
     } else {
       // Final Question -> Complete Session Transition
@@ -223,12 +341,43 @@ export function PracticeContainer({
       setLoading(false);
 
       if (res.success && res.data) {
+        setActiveSession(null);
         setResultsSummary(res.data);
         setScreenState('RESULTS');
       } else {
         setError(res.error || 'Failed to finalize practice results.');
       }
     }
+  };
+
+  // Jump to specific question in active session
+  const handleJumpToQuestion = (targetIdx: number) => {
+    if (targetIdx < 0 || targetIdx >= questions.length || targetIdx === currentIndex) return;
+
+    setCurrentIndex(targetIdx);
+    const targetQ = questions[targetIdx];
+    const existing = targetQ ? sessionAnsweredMap[targetQ.id] : null;
+
+    if (existing) {
+      setSelectedOption(existing.selectedOption);
+      setAnswerResult({
+        isCorrect: existing.isCorrect,
+        correctOption: existing.correctOption,
+        explanation: existing.explanation,
+        topic: targetQ.topic || targetQ.chapter,
+        chapter: targetQ.chapter,
+        subject: targetQ.subject,
+        xpEarned: 15,
+        newTotalXp: 0,
+        newLevel: 1,
+        leveledUp: false,
+        streak: 1,
+      });
+    } else {
+      setSelectedOption(null);
+      setAnswerResult(null);
+    }
+    setQuestionStartTime(Date.now());
   };
 
   const toggleQuestionExpanded = (id: string) => {
@@ -238,10 +387,7 @@ export function PracticeContainer({
     }));
   };
 
-  const currentQuestion = questions[currentIndex];
-  const progressPct = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0;
-
-  // Generate dynamic data-driven session takeaway summary
+  // Dynamic takeaway summary generator
   const generateDynamicSummary = (summary: PracticeSessionSummary) => {
     const { totalQuestions, correctAnswers, accuracy, topicDiagnostics } = summary;
     const statements: string[] = [];
@@ -270,7 +416,7 @@ export function PracticeContainer({
   };
 
   // ==========================================================================
-  // 1. CONFIGURATION VIEW
+  // 1. CONFIGURATION VIEW & RESUME CARD
   // ==========================================================================
   if (screenState === 'CONFIG') {
     return (
@@ -293,13 +439,119 @@ export function PracticeContainer({
         </div>
 
         {error && (
-          <div className="p-3 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg">
-            {error}
+          <div className="p-3 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center justify-between">
+            <span>{error}</span>
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              className="text-red-300 hover:underline cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {/* PERSISTENT RESUME CARD (If active session in database exists) */}
+        {activeSession && (
+          <div className="rounded-2xl border border-[#FF9D50]/30 bg-[#0C0E14] p-6 sm:p-7 shadow-xl space-y-5 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#FF9D50]/5 rounded-full blur-2xl pointer-events-none" />
+
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#50D97A] animate-pulse" />
+                  <span className="text-xs font-semibold text-[#FF9D50] tracking-wide uppercase">
+                    In-Progress Session Found
+                  </span>
+                </div>
+                <h2 className="text-lg font-bold text-white tracking-tight">
+                  {activeSession.subject
+                    ? activeSession.subject.charAt(0) + activeSession.subject.slice(1).toLowerCase()
+                    : 'JEE Main'}{' '}
+                  · {activeSession.chapter || 'Mixed Practice'}
+                </h2>
+                <p className="text-xs text-zinc-400">
+                  {activeSession.answeredCount} of {activeSession.totalQuestions} questions answered ·{' '}
+                  <strong className="text-zinc-200">
+                    {activeSession.totalQuestions - activeSession.answeredCount} remaining
+                  </strong>
+                </p>
+              </div>
+
+              <div className="text-right shrink-0">
+                <span className="text-xs font-mono text-zinc-400 block">
+                  Q{activeSession.currentQuestionIndex + 1} of {activeSession.totalQuestions}
+                </span>
+                <span className="text-[10px] text-zinc-500 mt-0.5 block">
+                  Difficulty: {activeSession.difficulty || 'Mixed'}
+                </span>
+              </div>
+            </div>
+
+            {/* Session Progress Bar */}
+            <div className="w-full bg-white/[0.06] h-1.5 rounded-full overflow-hidden">
+              <div
+                className="bg-[#FF9D50] h-full transition-all duration-300 rounded-full"
+                style={{
+                  width: `${Math.max(
+                    5,
+                    (activeSession.answeredCount / activeSession.totalQuestions) * 100
+                  )}%`,
+                }}
+              />
+            </div>
+
+            {/* Resume Action Buttons */}
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <button
+                type="button"
+                disabled={loading || abandoning}
+                onClick={() => handleResumeSession(activeSession)}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-[#FF9D50] hover:bg-[#FFAA66] text-[#080A0E] text-xs font-bold transition-all shadow-md active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Loading session...</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span>Resume Session</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                disabled={loading || abandoning}
+                onClick={() => {
+                  if (confirm('Discard this in-progress session and start fresh?')) {
+                    handleAbandonSession(activeSession.sessionId);
+                  }
+                }}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] text-zinc-400 hover:text-rose-400 border border-white/[0.08] hover:border-rose-500/30 text-xs font-medium transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Discard & Start New</span>
+              </button>
+            </div>
           </div>
         )}
 
         {/* Configuration Form */}
-        <div className="space-y-6">
+        <div className="space-y-6 pt-2">
+          {activeSession && (
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-white/[0.06]" />
+              <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider">
+                Or Configure New Session
+              </span>
+              <div className="h-px flex-1 bg-white/[0.06]" />
+            </div>
+          )}
+
           {/* 1. Subject */}
           <div className="space-y-2">
             <label className="text-xs font-medium text-zinc-400">Subject</label>
@@ -360,7 +612,7 @@ export function PracticeContainer({
                     key={count}
                     type="button"
                     onClick={() => setQuestionCount(count)}
-                    className={`py-2 rounded-lg text-xs font-medium transition-all ${
+                    className={`py-2 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                       questionCount === count
                         ? 'bg-[#FF9D50] text-[#080A0E] font-semibold'
                         : 'bg-white/[0.03] text-zinc-300 hover:bg-white/[0.06] border border-white/[0.06]'
@@ -380,7 +632,7 @@ export function PracticeContainer({
                     key={diff}
                     type="button"
                     onClick={() => setSelectedDifficulty(diff)}
-                    className={`py-2 rounded-lg text-xs font-medium transition-all ${
+                    className={`py-2 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                       selectedDifficulty === diff
                         ? 'bg-[#FF9D50] text-[#080A0E] font-semibold'
                         : 'bg-white/[0.03] text-zinc-300 hover:bg-white/[0.06] border border-white/[0.06]'
@@ -427,6 +679,8 @@ export function PracticeContainer({
   // 2. ACTIVE PRACTICE ENGINE VIEW
   // ==========================================================================
   if (screenState === 'ACTIVE' && currentQuestion) {
+    const answeredCount = Object.keys(sessionAnsweredMap).length;
+
     return (
       <div className="max-w-3xl mx-auto py-6 px-4 sm:px-0 space-y-6">
         {/* Compact Header */}
@@ -451,21 +705,49 @@ export function PracticeContainer({
 
           <div className="flex items-center gap-4 text-zinc-400">
             <span className="font-mono">
-              Q{currentIndex + 1} of {questions.length}
+              Q{currentIndex + 1} of {questions.length} ({answeredCount} answered)
             </span>
             <PracticeTimer startTime={startTime} />
             <button
               type="button"
               onClick={() => {
-                if (confirm('Exit current practice session?')) {
-                  setScreenState('CONFIG');
-                }
+                // Exit safely preserves active session in DB for later resume
+                setScreenState('CONFIG');
               }}
-              className="text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+              className="text-zinc-400 hover:text-white transition-colors cursor-pointer text-xs font-medium"
             >
-              Exit
+              Exit & Save
             </button>
           </div>
+        </div>
+
+        {/* Question Pill Navigation Bar */}
+        <div className="flex items-center gap-1.5 overflow-x-auto py-1 no-scrollbar">
+          {questions.map((q, idx) => {
+            const isAnswered = !!sessionAnsweredMap[q.id];
+            const isCorrect = sessionAnsweredMap[q.id]?.isCorrect;
+            const isCurrent = idx === currentIndex;
+
+            let pillClass = 'bg-white/[0.04] text-zinc-400 border-white/[0.06] hover:border-white/[0.15]';
+            if (isCurrent) {
+              pillClass = 'bg-[#FF9D50] text-[#080A0E] font-bold border-[#FF9D50] shadow-sm';
+            } else if (isAnswered && isCorrect) {
+              pillClass = 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30';
+            } else if (isAnswered && !isCorrect) {
+              pillClass = 'bg-red-500/10 text-red-300 border-red-500/30';
+            }
+
+            return (
+              <button
+                key={q.id}
+                type="button"
+                onClick={() => handleJumpToQuestion(idx)}
+                className={`w-7 h-7 rounded-lg text-xs font-mono border flex items-center justify-center shrink-0 transition-all cursor-pointer ${pillClass}`}
+              >
+                {idx + 1}
+              </button>
+            );
+          })}
         </div>
 
         {/* Minimal Progress Bar */}
@@ -488,7 +770,7 @@ export function PracticeContainer({
             <button
               type="button"
               onClick={() => setError(null)}
-              className="text-red-300 hover:underline"
+              className="text-red-300 hover:underline cursor-pointer"
             >
               Dismiss
             </button>
@@ -666,7 +948,7 @@ export function PracticeContainer({
   }
 
   // ==========================================================================
-  // 3. RESULTS VIEW (Academic / Linear-style Polish)
+  // 3. RESULTS VIEW
   // ==========================================================================
   if (screenState === 'RESULTS' && resultsSummary) {
     const summaryText = generateDynamicSummary(resultsSummary);
@@ -700,175 +982,127 @@ export function PracticeContainer({
             <span className={resultsSummary.accuracy >= 70 ? 'text-emerald-400' : 'text-zinc-300'}>
               {resultsSummary.accuracy}% accuracy
             </span>
-            <span className="text-zinc-600">·</span>
-            <span className="text-zinc-300">+{resultsSummary.xpEarned} XP</span>
-            <span className="text-zinc-600">·</span>
+            <span>·</span>
+            <span className="text-[#FF9D50]">+{resultsSummary.xpEarned} XP</span>
+            <span>·</span>
             <span>{durationDisplay}</span>
           </div>
+        </div>
 
-          {/* Data-Driven Summary Statement */}
-          <p className="text-xs text-zinc-400 leading-relaxed pt-1">
+        {/* Section 2: Data-Driven Performance Summary */}
+        <div className="pt-2 border-t border-white/[0.06]">
+          <p className="text-sm text-zinc-300 leading-relaxed font-normal">
             {summaryText}
           </p>
         </div>
 
-        {/* Section 2: Achievement Banner (Only if earned) */}
-        {resultsSummary.newAchievements && resultsSummary.newAchievements.length > 0 && (
-          <div className="p-4 rounded-lg bg-white/[0.02] border border-white/[0.08] space-y-2">
-            <span className="text-[11px] font-medium text-zinc-400">Unlocked Achievement</span>
-            {resultsSummary.newAchievements.map((ach) => (
-              <div key={ach.code} className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2.5">
-                  <span className="text-base">{ach.icon}</span>
-                  <div>
-                    <span className="text-white font-medium">{ach.title}</span>
-                    <span className="text-zinc-500 ml-2 text-[11px]">{ach.description}</span>
-                  </div>
+        {/* Section 3: Topic Diagnostics List */}
+        <div className="space-y-4 pt-2">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+            Topic Breakdown
+          </h2>
+
+          <div className="divide-y divide-white/[0.04] border-t border-b border-white/[0.06]">
+            {[
+              ...resultsSummary.topicDiagnostics.weakTopics,
+              ...resultsSummary.topicDiagnostics.strongTopics,
+            ].map((t) => (
+              <div
+                key={t.topic}
+                className="py-3 flex items-center justify-between gap-4 text-xs"
+              >
+                <div className="min-w-0">
+                  <div className="font-medium text-zinc-200 truncate">{t.topic}</div>
+                  <div className="text-zinc-500 text-[11px] truncate mt-0.5">{t.chapter}</div>
                 </div>
-                <span className="text-zinc-300 font-mono text-[11px]">+{ach.xpReward} XP</span>
+
+                <div className="flex items-center gap-4 shrink-0 font-mono text-right">
+                  <span className="text-zinc-400">
+                    {t.correct} / {t.total}
+                  </span>
+                  <span
+                    className={`w-12 font-medium ${
+                      t.accuracy >= 70
+                        ? 'text-emerald-400'
+                        : t.accuracy >= 50
+                        ? 'text-[#FF9D50]'
+                        : 'text-red-400'
+                    }`}
+                  >
+                    {t.accuracy}%
+                  </span>
+                </div>
               </div>
             ))}
           </div>
-        )}
+        </div>
 
-        {/* Section 3: Topic Diagnostics List */}
-        {resultsSummary.topicDiagnostics && (
+        {/* Section 4: Detailed Questions Review */}
+        <div className="space-y-4 pt-2">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+            Question Review
+          </h2>
+
           <div className="space-y-3">
-            <div className="flex items-center justify-between pb-1 border-b border-white/[0.06]">
-              <h2 className="text-xs font-medium text-zinc-400">Topic diagnostics</h2>
-              <span className="text-[11px] text-zinc-500 font-mono">
-                {resultsSummary.topicDiagnostics.weakTopics.length + resultsSummary.topicDiagnostics.strongTopics.length} topics evaluated
-              </span>
-            </div>
-
-            <div className="divide-y divide-white/[0.04]">
-              {/* Weak Topics Needing Work */}
-              {resultsSummary.topicDiagnostics.weakTopics.map((item, idx) => (
-                <div
-                  key={`weak-${idx}`}
-                  className="py-3 flex items-center justify-between gap-4 hover:bg-white/[0.01] transition-colors"
-                >
-                  <div className="space-y-0.5 min-w-0 flex-1">
-                    <span className="text-xs font-medium text-zinc-200 block truncate">
-                      {item.topic}
-                    </span>
-                    <span className="text-[11px] text-zinc-500 block truncate">
-                      {item.chapter}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-4 shrink-0">
-                    <span className="text-xs font-mono text-zinc-400">
-                      {item.correct}/{item.total} · <span className="text-red-400">{item.accuracy}%</span>
-                    </span>
-
-                    <button
-                      type="button"
-                      onClick={() => handleStartSession(selectedSubject, item.chapter)}
-                      className="px-2.5 py-1 text-[11px] font-medium text-zinc-300 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] rounded transition-colors"
-                    >
-                      Practice
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              {/* Strong / Mastered Topics */}
-              {resultsSummary.topicDiagnostics.strongTopics.map((item, idx) => (
-                <div
-                  key={`strong-${idx}`}
-                  className="py-3 flex items-center justify-between gap-4 hover:bg-white/[0.01] transition-colors"
-                >
-                  <div className="space-y-0.5 min-w-0 flex-1">
-                    <span className="text-xs font-medium text-zinc-200 block truncate">
-                      {item.topic}
-                    </span>
-                    <span className="text-[11px] text-zinc-500 block truncate">
-                      {item.chapter}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-4 shrink-0">
-                    <span className="text-xs font-mono text-zinc-400">
-                      {item.correct}/{item.total} · <span className="text-emerald-400">100%</span>
-                    </span>
-
-                    <span className="text-[11px] font-medium text-emerald-400 px-2 py-0.5">
-                      Mastered
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Section 4: Question Review Breakdown */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between pb-1 border-b border-white/[0.06]">
-            <h2 className="text-xs font-medium text-zinc-400">
-              Question review ({resultsSummary.questionsBreakdown.length})
-            </h2>
-          </div>
-
-          <div className="divide-y divide-white/[0.04]">
             {resultsSummary.questionsBreakdown.map((q, idx) => {
               const isExpanded = !!expandedQuestions[q.questionId];
 
               return (
-                <div key={q.questionId} className="py-3.5 space-y-2">
-                  {/* Summary Bar */}
-                  <div
+                <div
+                  key={q.questionId}
+                  className="rounded-xl border border-white/[0.06] bg-white/[0.01] overflow-hidden transition-colors"
+                >
+                  <button
+                    type="button"
                     onClick={() => toggleQuestionExpanded(q.questionId)}
-                    className="flex items-center justify-between gap-3 cursor-pointer select-none group"
+                    className="w-full p-4 text-left flex items-center justify-between gap-3 text-xs hover:bg-white/[0.02] transition-colors cursor-pointer"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span
-                        className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-mono shrink-0 ${
-                          q.isCorrect ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'
-                        }`}
-                      >
-                        {q.isCorrect ? '✓' : '✗'}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="font-mono text-zinc-500 shrink-0">
+                        {idx + 1 < 10 ? `0${idx + 1}` : idx + 1}
                       </span>
-                      <span className="text-xs text-zinc-300 font-mono">Q{idx + 1}</span>
-                      <span className="text-xs text-zinc-400 truncate max-w-[300px] sm:max-w-[400px]">
+                      {q.isCorrect ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      ) : (
+                        <XCircle className="w-4 h-4 text-red-400 shrink-0" />
+                      )}
+                      <span className="text-zinc-300 truncate font-normal">
                         {q.topic || q.chapter}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2 text-zinc-500 text-xs">
-                      <span className="font-mono text-[11px]">
-                        Ans: {q.selectedOption} {q.isCorrect ? '' : `(Correct: ${q.correctOption})`}
+                    <div className="flex items-center gap-3 shrink-0 font-mono text-zinc-400">
+                      <span>
+                        Selected <strong className="text-white">{q.selectedOption}</strong>
                       </span>
                       {isExpanded ? (
-                        <ChevronUp className="w-3.5 h-3.5 group-hover:text-zinc-300 transition-colors" />
+                        <ChevronUp className="w-3.5 h-3.5 text-zinc-500" />
                       ) : (
-                        <ChevronDown className="w-3.5 h-3.5 group-hover:text-zinc-300 transition-colors" />
+                        <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
                       )}
                     </div>
-                  </div>
+                  </button>
 
-                  {/* Expanded Detail */}
                   {isExpanded && (
-                    <div className="pt-2 pl-6 space-y-3 text-xs">
-                      <div className="text-zinc-200 leading-relaxed">
+                    <div className="p-4 pt-1 border-t border-white/[0.04] space-y-3 text-xs">
+                      <div className="text-zinc-200 leading-relaxed pt-2">
                         <MathRenderer content={q.text} />
                       </div>
 
-                      <div className="text-zinc-400 text-[11px] font-mono flex items-center gap-3">
-                        <span>
-                          Your answer: <strong className={q.isCorrect ? 'text-emerald-400' : 'text-red-400'}>Option {q.selectedOption}</strong>
+                      <div className="flex items-center gap-4 text-xs font-mono pt-1">
+                        <span className={q.isCorrect ? 'text-emerald-400' : 'text-red-400'}>
+                          Your answer: Option {q.selectedOption}
                         </span>
                         {!q.isCorrect && (
-                          <span>
-                            Correct: <strong className="text-emerald-400">Option {q.correctOption}</strong>
+                          <span className="text-emerald-400">
+                            Correct: Option {q.correctOption}
                           </span>
                         )}
                       </div>
 
                       {q.explanation && (
-                        <div className="p-3 rounded bg-white/[0.02] border border-white/[0.04] text-zinc-300 text-xs leading-relaxed space-y-1">
-                          <span className="text-zinc-500 text-[11px] block">Explanation:</span>
+                        <div className="pt-2 border-t border-white/[0.04] text-zinc-400 leading-relaxed">
+                          <span className="text-zinc-500 block mb-1">Explanation:</span>
                           <MathRenderer content={q.explanation} />
                         </div>
                       )}
@@ -880,24 +1114,26 @@ export function PracticeContainer({
           </div>
         </div>
 
-        {/* Section 5: Intentional Actions */}
-        <div className="pt-4 border-t border-white/[0.06] flex items-center justify-between gap-4">
-          <button
-            type="button"
-            onClick={() => setScreenState('CONFIG')}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-xs font-medium text-zinc-300 transition-colors cursor-pointer"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Practice again</span>
-          </button>
-
+        {/* Section 5: Primary Action Row */}
+        <div className="pt-6 border-t border-white/[0.06] flex items-center justify-between">
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg bg-[#FF9D50] hover:bg-[#FFAA66] text-[#080A0E] text-xs font-semibold tracking-wide transition-all shadow-sm active:scale-[0.99]"
+            className="text-xs text-zinc-400 hover:text-white transition-colors"
           >
-            <span>Back to Dashboard</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            ← Return to Dashboard
           </Link>
+
+          <button
+            type="button"
+            onClick={() => {
+              setScreenState('CONFIG');
+              setResultsSummary(null);
+            }}
+            className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-lg bg-[#FF9D50] hover:bg-[#FFAA66] text-[#080A0E] text-xs font-semibold tracking-wide transition-all shadow-sm active:scale-[0.99] cursor-pointer"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Start Another Session</span>
+          </button>
         </div>
       </div>
     );

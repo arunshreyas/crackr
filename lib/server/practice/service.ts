@@ -1,6 +1,6 @@
 import 'server-only';
 import { prisma } from '@/lib/server/db';
-import { QuestionSubject, OptionLabel } from '@prisma/client';
+import { QuestionSubject, OptionLabel, SessionStatus } from '@prisma/client';
 import { requireAuthenticatedUser } from '@/lib/server/auth';
 import { getQuestionsForPractice, ClientSafeQuestion } from '@/lib/server/questions/service';
 import {
@@ -16,7 +16,32 @@ export interface StartPracticeResult {
   questions: ClientSafeQuestion[];
   subject: QuestionSubject | null;
   chapter: string | null;
+  difficulty: string | null;
   totalQuestions: number;
+}
+
+export interface ActiveSessionAnswerState {
+  questionId: string;
+  selectedOption: OptionLabel;
+  isCorrect: boolean;
+  correctOption: OptionLabel;
+  explanation: string | null;
+  timeTakenSeconds: number | null;
+}
+
+export interface ActiveSessionState {
+  sessionId: string;
+  subject: QuestionSubject | null;
+  chapter: string | null;
+  difficulty: string | null;
+  totalQuestions: number;
+  currentQuestionIndex: number;
+  answeredCount: number;
+  durationSeconds: number;
+  questions: ClientSafeQuestion[];
+  answeredQuestions: Record<string, ActiveSessionAnswerState>;
+  lastActivityAt: string;
+  startedAt: string;
 }
 
 export interface AnswerSubmissionResult {
@@ -70,7 +95,150 @@ export interface PracticeSessionSummary {
 }
 
 /**
+ * Retrieves the user's most recent active (uncompleted) practice session.
+ * Used for seamless session resumption across browser reloads, navigation, and interruptions.
+ */
+export async function getActivePracticeSession(): Promise<ActiveSessionState | null> {
+  const { profile } = await requireAuthenticatedUser();
+
+  const session = await prisma.quizSession.findFirst({
+    where: {
+      userId: profile.id,
+      status: SessionStatus.ACTIVE,
+      completedAt: null,
+    },
+    orderBy: { lastActivityAt: 'desc' },
+    include: {
+      answers: {
+        include: {
+          question: {
+            select: {
+              id: true,
+              correctOption: true,
+              explanation: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!session || !session.questionIds || session.questionIds.length === 0) {
+    return null;
+  }
+
+  // Fetch the session's exact questions
+  const rawQuestions = await prisma.question.findMany({
+    where: {
+      id: { in: session.questionIds },
+    },
+    select: {
+      id: true,
+      text: true,
+      subject: true,
+      chapter: true,
+      topic: true,
+      year: true,
+      paperTitle: true,
+      difficulty: true,
+      options: {
+        orderBy: { position: 'asc' },
+        select: {
+          id: true,
+          label: true,
+          text: true,
+          position: true,
+        },
+      },
+    },
+  });
+
+  // Preserve the exact question order stored on the session record
+  const qMap = new Map(rawQuestions.map((q) => [q.id, q]));
+  const orderedQuestions: ClientSafeQuestion[] = [];
+  for (const qId of session.questionIds) {
+    const q = qMap.get(qId);
+    if (q) {
+      orderedQuestions.push({
+        id: q.id,
+        text: q.text,
+        subject: q.subject,
+        chapter: q.chapter,
+        topic: q.topic,
+        year: q.year,
+        paperTitle: q.paperTitle,
+        difficulty: q.difficulty,
+        options: q.options.map((opt) => ({
+          id: opt.id,
+          label: opt.label,
+          text: opt.text,
+          position: opt.position,
+        })),
+      });
+    }
+  }
+
+  if (orderedQuestions.length === 0) {
+    // If questions no longer exist in bank, mark abandoned
+    await prisma.quizSession.update({
+      where: { id: session.id },
+      data: { status: SessionStatus.ABANDONED, completedAt: new Date() },
+    });
+    return null;
+  }
+
+  // Map answered questions state
+  const answeredQuestions: Record<string, ActiveSessionAnswerState> = {};
+  for (const ans of session.answers) {
+    if (ans.question) {
+      answeredQuestions[ans.questionId] = {
+        questionId: ans.questionId,
+        selectedOption: ans.selectedOption,
+        isCorrect: ans.isCorrect,
+        correctOption: ans.question.correctOption,
+        explanation: ans.question.explanation,
+        timeTakenSeconds: ans.timeTakenSeconds,
+      };
+    }
+  }
+
+  const answeredCount = Object.keys(answeredQuestions).length;
+
+  // Determine current question index (first unanswered question)
+  let currentQuestionIndex = 0;
+  let foundUnanswered = false;
+  for (let i = 0; i < orderedQuestions.length; i++) {
+    if (!answeredQuestions[orderedQuestions[i].id]) {
+      currentQuestionIndex = i;
+      foundUnanswered = true;
+      break;
+    }
+  }
+
+  if (!foundUnanswered) {
+    // All questions have already been answered
+    currentQuestionIndex = Math.max(0, orderedQuestions.length - 1);
+  }
+
+  return {
+    sessionId: session.id,
+    subject: session.subject,
+    chapter: session.chapter,
+    difficulty: session.difficulty,
+    totalQuestions: orderedQuestions.length,
+    currentQuestionIndex,
+    answeredCount,
+    durationSeconds: session.durationSeconds,
+    questions: orderedQuestions,
+    answeredQuestions,
+    lastActivityAt: session.lastActivityAt.toISOString(),
+    startedAt: session.createdAt.toISOString(),
+  };
+}
+
+/**
  * Initiates a new verified practice session for the current user.
+ * Automatically marks any prior active sessions as abandoned.
  */
 export async function startPracticeSession(params: {
   subject?: QuestionSubject;
@@ -95,28 +263,51 @@ export async function startPracticeSession(params: {
     throw new Error('NO_QUESTIONS_FOUND: No matching questions in question bank.');
   }
 
-  // Create session in PostgreSQL
-  const session = await prisma.quizSession.create({
-    data: {
-      userId: profile.id,
-      subject: params.subject,
-      chapter: params.chapter && params.chapter !== 'ALL' ? params.chapter : 'Mixed Practice',
-      totalQuestions: questions.length,
-      durationSeconds: 0,
-    },
-  });
+  const questionIds = questions.map((q) => q.id);
+
+  // In parallel: abandon any previous active session and create new persistent session
+  const now = new Date();
+  const [, session] = await prisma.$transaction([
+    prisma.quizSession.updateMany({
+      where: {
+        userId: profile.id,
+        status: SessionStatus.ACTIVE,
+        completedAt: null,
+      },
+      data: {
+        status: SessionStatus.ABANDONED,
+        completedAt: now,
+      },
+    }),
+    prisma.quizSession.create({
+      data: {
+        userId: profile.id,
+        subject: params.subject,
+        chapter: params.chapter && params.chapter !== 'ALL' ? params.chapter : 'Mixed Practice',
+        difficulty: params.difficulty || 'ALL',
+        status: SessionStatus.ACTIVE,
+        questionIds,
+        currentQuestionIndex: 0,
+        totalQuestions: questions.length,
+        durationSeconds: 0,
+        lastActivityAt: now,
+      },
+    }),
+  ]);
 
   return {
     sessionId: session.id,
     questions,
     subject: params.subject || null,
     chapter: params.chapter || null,
+    difficulty: params.difficulty || null,
     totalQuestions: questions.length,
   };
 }
 
 /**
  * Authoritatively validates an answer submission on the server.
+ * Fully idempotent against double-clicks, concurrent tabs, and retries.
  */
 export async function submitPracticeAnswer(params: {
   sessionId: string;
@@ -127,14 +318,18 @@ export async function submitPracticeAnswer(params: {
   const { profile } = await requireAuthenticatedUser();
   const { sessionId, questionId, selectedOption, timeTakenSeconds = 30 } = params;
 
-  // 1, 2, 3: Fetch session, duplicate check, and question in parallel to minimize latency
+  // Fetch session, existing answer, and question concurrently
   const [session, existingAnswer, question] = await Promise.all([
     prisma.quizSession.findUnique({
       where: { id: sessionId },
       select: {
         id: true,
         userId: true,
+        status: true,
         completedAt: true,
+        questionIds: true,
+        currentQuestionIndex: true,
+        durationSeconds: true,
       },
     }),
     prisma.quizAnswer.findFirst({
@@ -172,11 +367,11 @@ export async function submitPracticeAnswer(params: {
     throw new Error('FORBIDDEN: Session not found or unauthorized.');
   }
 
-  if (session.completedAt) {
+  if (session.completedAt || session.status === SessionStatus.COMPLETED) {
     throw new Error('SESSION_COMPLETED: This session has already ended.');
   }
 
-  // Idempotent return if already answered
+  // Idempotent return if this question was already answered
   if (existingAnswer && existingAnswer.question) {
     const isCorrect = existingAnswer.isCorrect;
     const xpAmount =
@@ -202,15 +397,20 @@ export async function submitPracticeAnswer(params: {
 
   const isCorrect = question.correctOption === selectedOption;
 
-  // 4. Calculate XP
+  // Calculate XP
   const xpAmount =
     XP_CONFIG.QUESTION_ANSWERED + (isCorrect ? XP_CONFIG.QUESTION_CORRECT_BONUS : 0);
 
   const now = new Date();
 
-  // 5. Execute atomic transaction with concurrent writes
+  // Next question index calculation
+  const qIdx = session.questionIds.indexOf(questionId);
+  const nextQuestionIndex =
+    qIdx >= 0 ? Math.min(session.questionIds.length - 1, qIdx + 1) : session.currentQuestionIndex;
+
+  // Atomic database transaction with unique constraint protection
   const { newTotalXp, newLevel, leveledUp, streak } = await prisma.$transaction(async (tx) => {
-    // Fetch fresh profile state
+    // Fetch fresh profile state inside transaction
     const currentProfile = await tx.userProfile.findUniqueOrThrow({
       where: { id: profile.id },
       select: {
@@ -286,6 +486,14 @@ export async function submitPracticeAnswer(params: {
           lastPracticeAt: now,
         },
       }),
+      tx.quizSession.update({
+        where: { id: sessionId },
+        data: {
+          currentQuestionIndex: nextQuestionIndex,
+          durationSeconds: session.durationSeconds + timeTakenSeconds,
+          lastActivityAt: now,
+        },
+      }),
     ]);
 
     return {
@@ -313,6 +521,7 @@ export async function submitPracticeAnswer(params: {
 
 /**
  * Completes a practice session and generates the final results breakdown.
+ * Prevents the session from ever being resumed afterward.
  */
 export async function completePracticeSession(params: {
   sessionId: string;
@@ -356,22 +565,24 @@ export async function completePracticeSession(params: {
   }, 0);
 
   // Bonus XP for perfect sessions (min 5 questions)
-  if (totalQuestions >= 5 && accuracy === 100) {
+  if (totalQuestions >= 5 && accuracy === 100 && session.status !== SessionStatus.COMPLETED) {
     sessionXpEarned += XP_CONFIG.PERFECT_SESSION_BONUS;
     await awardXp(profile.id, XP_CONFIG.PERFECT_SESSION_BONUS, 'PERFECT_SESSION_BONUS', sessionId);
   }
 
-  // Update session record
-  const completedAt = new Date();
+  // Update session record to COMPLETED
+  const completedAt = session.completedAt || new Date();
   await prisma.quizSession.update({
     where: { id: sessionId },
     data: {
+      status: SessionStatus.COMPLETED,
       completedAt,
       totalQuestions,
       correctAnswers: correctCount,
       accuracy,
-      durationSeconds: Math.max(durationSeconds, 1),
+      durationSeconds: Math.max(durationSeconds, session.durationSeconds, 1),
       xpEarned: sessionXpEarned,
+      lastActivityAt: completedAt,
     },
   });
 
@@ -438,7 +649,7 @@ export async function completePracticeSession(params: {
     correctAnswers: correctCount,
     accuracy,
     xpEarned: sessionXpEarned,
-    durationSeconds: Math.max(durationSeconds, 1),
+    durationSeconds: Math.max(durationSeconds, session.durationSeconds, 1),
     completedAt: completedAt.toISOString(),
     newAchievements,
     topicDiagnostics: {
@@ -447,4 +658,33 @@ export async function completePracticeSession(params: {
     },
     questionsBreakdown,
   };
+}
+
+/**
+ * Explicitly abandons an active practice session so the user can start a fresh session.
+ */
+export async function abandonPracticeSession(params: {
+  sessionId: string;
+}): Promise<{ success: boolean }> {
+  const { profile } = await requireAuthenticatedUser();
+  const { sessionId } = params;
+
+  const session = await prisma.quizSession.findUnique({
+    where: { id: sessionId },
+    select: { id: true, userId: true },
+  });
+
+  if (!session || session.userId !== profile.id) {
+    throw new Error('FORBIDDEN: Session not found or unauthorized.');
+  }
+
+  await prisma.quizSession.update({
+    where: { id: sessionId },
+    data: {
+      status: SessionStatus.ABANDONED,
+      completedAt: new Date(),
+    },
+  });
+
+  return { success: true };
 }

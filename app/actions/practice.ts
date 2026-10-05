@@ -4,11 +4,27 @@ import {
   startPracticeSession,
   submitPracticeAnswer,
   completePracticeSession,
+  getActivePracticeSession,
+  abandonPracticeSession,
   StartPracticeResult,
   AnswerSubmissionResult,
   PracticeSessionSummary,
+  ActiveSessionState,
 } from '@/lib/server/practice/service';
 import { QuestionSubject, OptionLabel } from '@prisma/client';
+
+export async function getActiveSessionAction(): Promise<{
+  success: boolean;
+  data?: ActiveSessionState | null;
+  error?: string;
+}> {
+  try {
+    const data = await getActivePracticeSession();
+    return { success: true, data };
+  } catch (err) {
+    return { success: false, error: (err as Error).message };
+  }
+}
 
 export async function startPracticeAction(params: {
   subject?: QuestionSubject;
@@ -45,6 +61,17 @@ export async function completeSessionAction(params: {
   try {
     const data = await completePracticeSession(params);
     return { success: true, data };
+  } catch (err) {
+    return { success: false, error: (err as Error).message };
+  }
+}
+
+export async function abandonSessionAction(params: {
+  sessionId: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    await abandonPracticeSession(params);
+    return { success: true };
   } catch (err) {
     return { success: false, error: (err as Error).message };
   }

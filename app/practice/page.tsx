@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getAuthenticatedUser } from '@/lib/server/auth';
 import { getSubjectChapterCatalog } from '@/lib/server/questions/service';
+import { getActivePracticeSession } from '@/lib/server/practice/service';
 import { AppSidebar } from '@/components/dashboard/AppSidebar';
 import { PracticeContainer } from './PracticeContainer';
 
@@ -20,8 +21,11 @@ export default async function PracticePage() {
     redirect('/onboarding');
   }
 
-  // 3. Load cached chapter & question catalog from server-only service
-  const catalog = await getSubjectChapterCatalog();
+  // 3. Load catalog and check for active persistent session concurrently
+  const [catalog, activeSession] = await Promise.all([
+    getSubjectChapterCatalog(),
+    getActivePracticeSession(),
+  ]);
 
   return (
     <div className="min-h-screen bg-[#080A0E] text-zinc-100 flex selection:bg-[#FF9D50]/30 selection:text-[#FFF9D8]">
@@ -35,6 +39,7 @@ export default async function PracticePage() {
             <PracticeContainer
               catalog={catalog}
               preferredDifficulty={authCtx.profile.preferredDifficulty}
+              initialActiveSession={activeSession}
             />
           </Suspense>
         </main>

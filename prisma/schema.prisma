@@ -126,25 +126,37 @@ model QuestionVector {
   @@index([questionId])
 }
 
+enum SessionStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
+}
+
 model QuizSession {
-  id              String           @id @default(cuid())
-  userId          String
-  user            UserProfile      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subject         QuestionSubject?
-  chapter         String?          @db.VarChar(255)
-  totalQuestions  Int              @default(0)
-  correctAnswers  Int              @default(0)
-  accuracy        Float            @default(0)
-  xpEarned        Int              @default(0)
-  durationSeconds Int              @default(0)
-  completedAt     DateTime?
+  id                   String           @id @default(cuid())
+  userId               String
+  user                 UserProfile      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject              QuestionSubject?
+  chapter              String?          @db.VarChar(255)
+  difficulty           String?          @db.VarChar(50)
+  status               SessionStatus    @default(ACTIVE)
+  questionIds          String[]
+  currentQuestionIndex Int              @default(0)
+  totalQuestions       Int              @default(0)
+  correctAnswers       Int              @default(0)
+  accuracy             Float            @default(0)
+  xpEarned             Int              @default(0)
+  durationSeconds      Int              @default(0)
+  lastActivityAt       DateTime         @default(now())
+  completedAt          DateTime?
 
-  answers         QuizAnswer[]
+  answers              QuizAnswer[]
 
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 
   @@index([userId])
+  @@index([userId, status])
   @@index([createdAt])
   @@index([subject])
 }
@@ -163,6 +175,7 @@ model QuizAnswer {
 
   createdAt        DateTime     @default(now())
 
+  @@unique([sessionId, questionId])
   @@index([userId])
   @@index([sessionId])
   @@index([questionId])
