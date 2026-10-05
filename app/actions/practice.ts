@@ -5,13 +5,42 @@ import {
   submitPracticeAnswer,
   completePracticeSession,
   getActivePracticeSession,
+  getActivePracticeSessions,
+  getPracticeSessionById,
   abandonPracticeSession,
   StartPracticeResult,
   AnswerSubmissionResult,
   PracticeSessionSummary,
   ActiveSessionState,
+  ActiveSessionSummaryItem,
 } from '@/lib/server/practice/service';
 import { QuestionSubject, OptionLabel } from '@prisma/client';
+
+export async function getActiveSessionsAction(): Promise<{
+  success: boolean;
+  data?: ActiveSessionSummaryItem[];
+  error?: string;
+}> {
+  try {
+    const data = await getActivePracticeSessions();
+    return { success: true, data };
+  } catch (err) {
+    return { success: false, error: (err as Error).message };
+  }
+}
+
+export async function getSessionByIdAction(sessionId: string): Promise<{
+  success: boolean;
+  data?: ActiveSessionState | null;
+  error?: string;
+}> {
+  try {
+    const data = await getPracticeSessionById(sessionId);
+    return { success: true, data };
+  } catch (err) {
+    return { success: false, error: (err as Error).message };
+  }
+}
 
 export async function getActiveSessionAction(): Promise<{
   success: boolean;

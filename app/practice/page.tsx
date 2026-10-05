@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getAuthenticatedUser } from '@/lib/server/auth';
 import { getSubjectChapterCatalog } from '@/lib/server/questions/service';
-import { getActivePracticeSession } from '@/lib/server/practice/service';
+import { getActivePracticeSessions } from '@/lib/server/practice/service';
 import { AppSidebar } from '@/components/dashboard/AppSidebar';
 import { PracticeContainer } from './PracticeContainer';
 
@@ -21,10 +21,10 @@ export default async function PracticePage() {
     redirect('/onboarding');
   }
 
-  // 3. Load catalog and check for active persistent session concurrently
-  const [catalog, activeSession] = await Promise.all([
+  // 3. Load catalog and check all active persistent sessions concurrently
+  const [catalog, activeSessions] = await Promise.all([
     getSubjectChapterCatalog(),
-    getActivePracticeSession(),
+    getActivePracticeSessions(),
   ]);
 
   return (
@@ -39,7 +39,7 @@ export default async function PracticePage() {
             <PracticeContainer
               catalog={catalog}
               preferredDifficulty={authCtx.profile.preferredDifficulty}
-              initialActiveSession={activeSession}
+              initialActiveSessions={activeSessions}
             />
           </Suspense>
         </main>

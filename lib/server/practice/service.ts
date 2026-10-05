@@ -44,6 +44,19 @@ export interface ActiveSessionState {
   startedAt: string;
 }
 
+export interface ActiveSessionSummaryItem {
+  sessionId: string;
+  subject: QuestionSubject | null;
+  chapter: string | null;
+  difficulty: string | null;
+  totalQuestions: number;
+  answeredCount: number;
+  currentQuestionIndex: number;
+  durationSeconds: number;
+  lastActivityAt: string;
+  startedAt: string;
+}
+
 export interface AnswerSubmissionResult {
   isCorrect: boolean;
   correctOption: OptionLabel;
@@ -95,19 +108,50 @@ export interface PracticeSessionSummary {
 }
 
 /**
- * Retrieves the user's most recent active (uncompleted) practice session.
- * Used for seamless session resumption across browser reloads, navigation, and interruptions.
+ * Retrieves all active (in-progress) practice sessions for the current user.
+ * Allows users to see and resume any of their ongoing sessions (e.g. Physics, Chemistry, Math).
  */
-export async function getActivePracticeSession(): Promise<ActiveSessionState | null> {
+export async function getActivePracticeSessions(): Promise<ActiveSessionSummaryItem[]> {
   const { profile } = await requireAuthenticatedUser();
 
-  const session = await prisma.quizSession.findFirst({
+  const sessions = await prisma.quizSession.findMany({
     where: {
       userId: profile.id,
       status: SessionStatus.ACTIVE,
       completedAt: null,
     },
     orderBy: { lastActivityAt: 'desc' },
+    include: {
+      _count: {
+        select: { answers: true },
+      },
+    },
+  });
+
+  return sessions
+    .filter((s) => s.questionIds && s.questionIds.length > 0)
+    .map((s) => ({
+      sessionId: s.id,
+      subject: s.subject,
+      chapter: s.chapter,
+      difficulty: s.difficulty,
+      totalQuestions: s.totalQuestions || s.questionIds.length,
+      answeredCount: s._count.answers,
+      currentQuestionIndex: s.currentQuestionIndex,
+      durationSeconds: s.durationSeconds,
+      lastActivityAt: s.lastActivityAt.toISOString(),
+      startedAt: s.createdAt.toISOString(),
+    }));
+}
+
+/**
+ * Loads the full active state for a specific session by its unique ID.
+ */
+export async function getPracticeSessionById(sessionId: string): Promise<ActiveSessionState | null> {
+  const { profile } = await requireAuthenticatedUser();
+
+  const session = await prisma.quizSession.findUnique({
+    where: { id: sessionId },
     include: {
       answers: {
         include: {
@@ -123,7 +167,11 @@ export async function getActivePracticeSession(): Promise<ActiveSessionState | n
     },
   });
 
-  if (!session || !session.questionIds || session.questionIds.length === 0) {
+  if (!session || session.userId !== profile.id || session.status !== SessionStatus.ACTIVE || session.completedAt) {
+    return null;
+  }
+
+  if (!session.questionIds || session.questionIds.length === 0) {
     return null;
   }
 
@@ -179,7 +227,6 @@ export async function getActivePracticeSession(): Promise<ActiveSessionState | n
   }
 
   if (orderedQuestions.length === 0) {
-    // If questions no longer exist in bank, mark abandoned
     await prisma.quizSession.update({
       where: { id: session.id },
       data: { status: SessionStatus.ABANDONED, completedAt: new Date() },
@@ -216,7 +263,6 @@ export async function getActivePracticeSession(): Promise<ActiveSessionState | n
   }
 
   if (!foundUnanswered) {
-    // All questions have already been answered
     currentQuestionIndex = Math.max(0, orderedQuestions.length - 1);
   }
 
@@ -237,8 +283,28 @@ export async function getActivePracticeSession(): Promise<ActiveSessionState | n
 }
 
 /**
+ * Retrieves the user's single most recent active practice session.
+ */
+export async function getActivePracticeSession(): Promise<ActiveSessionState | null> {
+  const { profile } = await requireAuthenticatedUser();
+
+  const session = await prisma.quizSession.findFirst({
+    where: {
+      userId: profile.id,
+      status: SessionStatus.ACTIVE,
+      completedAt: null,
+    },
+    orderBy: { lastActivityAt: 'desc' },
+    select: { id: true },
+  });
+
+  if (!session) return null;
+  return getPracticeSessionById(session.id);
+}
+
+/**
  * Initiates a new verified practice session for the current user.
- * Automatically marks any prior active sessions as abandoned.
+ * Supports concurrent active sessions across different subjects/chapters.
  */
 export async function startPracticeSession(params: {
   subject?: QuestionSubject;
@@ -264,36 +330,22 @@ export async function startPracticeSession(params: {
   }
 
   const questionIds = questions.map((q) => q.id);
-
-  // In parallel: abandon any previous active session and create new persistent session
   const now = new Date();
-  const [, session] = await prisma.$transaction([
-    prisma.quizSession.updateMany({
-      where: {
-        userId: profile.id,
-        status: SessionStatus.ACTIVE,
-        completedAt: null,
-      },
-      data: {
-        status: SessionStatus.ABANDONED,
-        completedAt: now,
-      },
-    }),
-    prisma.quizSession.create({
-      data: {
-        userId: profile.id,
-        subject: params.subject,
-        chapter: params.chapter && params.chapter !== 'ALL' ? params.chapter : 'Mixed Practice',
-        difficulty: params.difficulty || 'ALL',
-        status: SessionStatus.ACTIVE,
-        questionIds,
-        currentQuestionIndex: 0,
-        totalQuestions: questions.length,
-        durationSeconds: 0,
-        lastActivityAt: now,
-      },
-    }),
-  ]);
+
+  const session = await prisma.quizSession.create({
+    data: {
+      userId: profile.id,
+      subject: params.subject,
+      chapter: params.chapter && params.chapter !== 'ALL' ? params.chapter : 'Mixed Practice',
+      difficulty: params.difficulty || 'ALL',
+      status: SessionStatus.ACTIVE,
+      questionIds,
+      currentQuestionIndex: 0,
+      totalQuestions: questions.length,
+      durationSeconds: 0,
+      lastActivityAt: now,
+    },
+  });
 
   return {
     sessionId: session.id,
@@ -661,7 +713,7 @@ export async function completePracticeSession(params: {
 }
 
 /**
- * Explicitly abandons an active practice session so the user can start a fresh session.
+ * Explicitly abandons an active practice session so the user can clean up their list.
  */
 export async function abandonPracticeSession(params: {
   sessionId: string;

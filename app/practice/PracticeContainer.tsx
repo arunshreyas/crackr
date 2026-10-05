@@ -13,12 +13,15 @@ import {
   submitAnswerAction,
   completeSessionAction,
   abandonSessionAction,
+  getSessionByIdAction,
+  getActiveSessionsAction,
 } from '@/app/actions/practice';
 import {
   PracticeSessionSummary,
   AnswerSubmissionResult,
   ActiveSessionState,
   ActiveSessionAnswerState,
+  ActiveSessionSummaryItem,
 } from '@/lib/server/practice/service';
 import {
   ArrowLeft,
@@ -35,13 +38,14 @@ import {
   Play,
   Trash2,
   Bookmark,
+  Calendar,
 } from 'lucide-react';
 import { MathRenderer } from '@/components/ui/MathRenderer';
 
 interface PracticeContainerProps {
   catalog: SubjectCatalog;
   preferredDifficulty: string | null;
-  initialActiveSession?: ActiveSessionState | null;
+  initialActiveSessions?: ActiveSessionSummaryItem[];
 }
 
 type PracticeState = 'CONFIG' | 'ACTIVE' | 'RESULTS';
@@ -69,10 +73,25 @@ const PracticeTimer = React.memo(function PracticeTimer({ startTime }: { startTi
   );
 });
 
+function formatLastActive(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays === 1) return 'Yesterday';
+  return `${diffDays}d ago`;
+}
+
 export function PracticeContainer({
   catalog,
   preferredDifficulty,
-  initialActiveSession = null,
+  initialActiveSessions = [],
 }: PracticeContainerProps) {
   const searchParams = useSearchParams();
 
@@ -85,8 +104,8 @@ export function PracticeContainer({
   const urlChapter = searchParams.get('chapter');
   const initialChapter = urlChapter || 'ALL';
 
-  // Active persistent session from database
-  const [activeSession, setActiveSession] = useState<ActiveSessionState | null>(initialActiveSession);
+  // Active persistent sessions list
+  const [activeSessions, setActiveSessions] = useState<ActiveSessionSummaryItem[]>(initialActiveSessions);
 
   // Screen state
   const [screenState, setScreenState] = useState<PracticeState>('CONFIG');
@@ -106,7 +125,8 @@ export function PracticeContainer({
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>(initialDifficulty);
   const [questionCount, setQuestionCount] = useState<number>(10);
   const [loading, setLoading] = useState(false);
-  const [abandoning, setAbandoning] = useState(false);
+  const [resumingSessionId, setResumingSessionId] = useState<string | null>(null);
+  const [abandoningSessionId, setAbandoningSessionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Active Session state
@@ -124,7 +144,6 @@ export function PracticeContainer({
   const [resultsSummary, setResultsSummary] = useState<PracticeSessionSummary | null>(null);
   const [expandedQuestions, setExpandedQuestions] = useState<Record<string, boolean>>({});
 
-  // Sync state when navigating between questions in an active session
   const currentQuestion = questions[currentIndex];
   const progressPct = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0;
 
@@ -133,7 +152,6 @@ export function PracticeContainer({
     if (screenState !== 'ACTIVE') return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore key events when focusing inputs
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)) return;
 
       const key = e.key.toUpperCase();
@@ -155,7 +173,6 @@ export function PracticeContainer({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [screenState, selectedOption, answerResult, submitting, loading, currentIndex, questions.length]);
 
-  // Available chapters for selected subject
   const availableChapters = catalog[selectedSubject] || [];
 
   const handleSubjectChange = (subj: QuestionSubject) => {
@@ -163,64 +180,72 @@ export function PracticeContainer({
     setSelectedChapter('ALL');
   };
 
-  // Resume Session Handler (Restores exact database state)
-  const handleResumeSession = (sessionToResume: ActiveSessionState) => {
-    setLoading(true);
+  // Resume a specific active session by ID
+  const handleResumeSessionById = async (targetSessionId: string) => {
+    setResumingSessionId(targetSessionId);
     setError(null);
 
-    const qList = sessionToResume.questions;
-    const targetIdx = sessionToResume.currentQuestionIndex;
-    const answeredMap = sessionToResume.answeredQuestions || {};
+    const res = await getSessionByIdAction(targetSessionId);
+    setResumingSessionId(null);
 
-    setSessionId(sessionToResume.sessionId);
-    setQuestions(qList);
-    setCurrentIndex(targetIdx);
-    setSessionAnsweredMap(answeredMap);
+    if (res.success && res.data) {
+      const sess = res.data;
+      const qList = sess.questions;
+      const targetIdx = sess.currentQuestionIndex;
+      const answeredMap = sess.answeredQuestions || {};
 
-    const currQ = qList[targetIdx];
-    if (currQ && answeredMap[currQ.id]) {
-      const existing = answeredMap[currQ.id];
-      setSelectedOption(existing.selectedOption);
-      setAnswerResult({
-        isCorrect: existing.isCorrect,
-        correctOption: existing.correctOption,
-        explanation: existing.explanation,
-        topic: currQ.topic || currQ.chapter,
-        chapter: currQ.chapter,
-        subject: currQ.subject,
-        xpEarned: 15,
-        newTotalXp: 0,
-        newLevel: 1,
-        leveledUp: false,
-        streak: 1,
-      });
+      setSessionId(sess.sessionId);
+      setQuestions(qList);
+      setCurrentIndex(targetIdx);
+      setSessionAnsweredMap(answeredMap);
+
+      const currQ = qList[targetIdx];
+      if (currQ && answeredMap[currQ.id]) {
+        const existing = answeredMap[currQ.id];
+        setSelectedOption(existing.selectedOption);
+        setAnswerResult({
+          isCorrect: existing.isCorrect,
+          correctOption: existing.correctOption,
+          explanation: existing.explanation,
+          topic: currQ.topic || currQ.chapter,
+          chapter: currQ.chapter,
+          subject: currQ.subject,
+          xpEarned: 15,
+          newTotalXp: 0,
+          newLevel: 1,
+          leveledUp: false,
+          streak: 1,
+        });
+      } else {
+        setSelectedOption(null);
+        setAnswerResult(null);
+      }
+
+      const priorDurationMs = (sess.durationSeconds || 0) * 1000;
+      setStartTime(Date.now() - priorDurationMs);
+      setQuestionStartTime(Date.now());
+      setExpandedQuestions({});
+      setScreenState('ACTIVE');
     } else {
-      setSelectedOption(null);
-      setAnswerResult(null);
+      setError(res.error || 'Failed to load session details.');
     }
-
-    // Offset timer so elapsed duration includes prior practice seconds
-    const priorDurationMs = (sessionToResume.durationSeconds || 0) * 1000;
-    setStartTime(Date.now() - priorDurationMs);
-    setQuestionStartTime(Date.now());
-    setExpandedQuestions({});
-    setLoading(false);
-    setScreenState('ACTIVE');
   };
 
-  // Discard / Abandon Active Session Handler
+  // Discard / Abandon a specific active session
   const handleAbandonSession = async (sessId: string) => {
-    setAbandoning(true);
+    setAbandoningSessionId(sessId);
     setError(null);
 
     const res = await abandonSessionAction({ sessionId: sessId });
-    setAbandoning(false);
+    setAbandoningSessionId(null);
 
     if (res.success) {
-      setActiveSession(null);
-      setSessionId(null);
-      setQuestions([]);
-      setSessionAnsweredMap({});
+      setActiveSessions((prev) => prev.filter((s) => s.sessionId !== sessId));
+      if (sessionId === sessId) {
+        setSessionId(null);
+        setQuestions([]);
+        setSessionAnsweredMap({});
+      }
     } else {
       setError(res.error || 'Failed to discard session.');
     }
@@ -244,7 +269,6 @@ export function PracticeContainer({
     setLoading(false);
 
     if (res.success && res.data) {
-      setActiveSession(null);
       setSessionId(res.data.sessionId);
       setQuestions(res.data.questions);
       setCurrentIndex(0);
@@ -260,7 +284,7 @@ export function PracticeContainer({
     }
   };
 
-  // Submit Answer Handler (Authoritative server validation)
+  // Submit Answer Handler
   const handleSubmitAnswer = async () => {
     if (!sessionId || !selectedOption || !currentQuestion || submitting) return;
 
@@ -280,7 +304,6 @@ export function PracticeContainer({
 
     if (res.success && res.data) {
       setAnswerResult(res.data);
-      // Update local answered map
       setSessionAnsweredMap((prev) => ({
         ...prev,
         [currentQuestion.id]: {
@@ -328,7 +351,6 @@ export function PracticeContainer({
 
       setQuestionStartTime(Date.now());
     } else {
-      // Final Question -> Complete Session Transition
       if (!sessionId) return;
       setLoading(true);
 
@@ -341,7 +363,7 @@ export function PracticeContainer({
       setLoading(false);
 
       if (res.success && res.data) {
-        setActiveSession(null);
+        setActiveSessions((prev) => prev.filter((s) => s.sessionId !== sessionId));
         setResultsSummary(res.data);
         setScreenState('RESULTS');
       } else {
@@ -350,7 +372,16 @@ export function PracticeContainer({
     }
   };
 
-  // Jump to specific question in active session
+  // Exit practice and return to config with updated sessions list
+  const handleExitPractice = async () => {
+    setScreenState('CONFIG');
+    // Refresh sessions list
+    const res = await getActiveSessionsAction();
+    if (res.success && res.data) {
+      setActiveSessions(res.data);
+    }
+  };
+
   const handleJumpToQuestion = (targetIdx: number) => {
     if (targetIdx < 0 || targetIdx >= questions.length || targetIdx === currentIndex) return;
 
@@ -387,7 +418,6 @@ export function PracticeContainer({
     }));
   };
 
-  // Dynamic takeaway summary generator
   const generateDynamicSummary = (summary: PracticeSessionSummary) => {
     const { totalQuestions, correctAnswers, accuracy, topicDiagnostics } = summary;
     const statements: string[] = [];
@@ -416,7 +446,7 @@ export function PracticeContainer({
   };
 
   // ==========================================================================
-  // 1. CONFIGURATION VIEW & RESUME CARD
+  // 1. CONFIGURATION VIEW & MULTI-SESSION LIST
   // ==========================================================================
   if (screenState === 'CONFIG') {
     return (
@@ -431,10 +461,10 @@ export function PracticeContainer({
             <span>Dashboard</span>
           </Link>
           <h1 className="text-2xl font-semibold tracking-tight text-white">
-            Practice
+            Practice Workstation
           </h1>
           <p className="text-xs text-zinc-400 mt-1">
-            Configure an adaptive practice session from official JEE papers.
+            Pick a subject or resume any of your in-progress practice sessions.
           </p>
         </div>
 
@@ -451,102 +481,151 @@ export function PracticeContainer({
           </div>
         )}
 
-        {/* PERSISTENT RESUME CARD (If active session in database exists) */}
-        {activeSession && (
-          <div className="rounded-2xl border border-[#FF9D50]/30 bg-[#0C0E14] p-6 sm:p-7 shadow-xl space-y-5 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#FF9D50]/5 rounded-full blur-2xl pointer-events-none" />
-
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#50D97A] animate-pulse" />
-                  <span className="text-xs font-semibold text-[#FF9D50] tracking-wide uppercase">
-                    In-Progress Session Found
-                  </span>
-                </div>
-                <h2 className="text-lg font-bold text-white tracking-tight">
-                  {activeSession.subject
-                    ? activeSession.subject.charAt(0) + activeSession.subject.slice(1).toLowerCase()
-                    : 'JEE Main'}{' '}
-                  · {activeSession.chapter || 'Mixed Practice'}
+        {/* ALL IN-PROGRESS SESSIONS (Multi-Session Resume Card List) */}
+        {activeSessions.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#50D97A] animate-pulse" />
+                <h2 className="text-xs font-bold text-white uppercase tracking-wider">
+                  In-Progress Practice Sessions ({activeSessions.length})
                 </h2>
-                <p className="text-xs text-zinc-400">
-                  {activeSession.answeredCount} of {activeSession.totalQuestions} questions answered ·{' '}
-                  <strong className="text-zinc-200">
-                    {activeSession.totalQuestions - activeSession.answeredCount} remaining
-                  </strong>
-                </p>
               </div>
-
-              <div className="text-right shrink-0">
-                <span className="text-xs font-mono text-zinc-400 block">
-                  Q{activeSession.currentQuestionIndex + 1} of {activeSession.totalQuestions}
-                </span>
-                <span className="text-[10px] text-zinc-500 mt-0.5 block">
-                  Difficulty: {activeSession.difficulty || 'Mixed'}
-                </span>
-              </div>
+              <span className="text-[11px] text-zinc-500 font-mono">
+                Saved in cloud · Resume anytime
+              </span>
             </div>
 
-            {/* Session Progress Bar */}
-            <div className="w-full bg-white/[0.06] h-1.5 rounded-full overflow-hidden">
-              <div
-                className="bg-[#FF9D50] h-full transition-all duration-300 rounded-full"
-                style={{
-                  width: `${Math.max(
-                    5,
-                    (activeSession.answeredCount / activeSession.totalQuestions) * 100
-                  )}%`,
-                }}
-              />
-            </div>
+            <div className="space-y-3">
+              {activeSessions.map((sess) => {
+                const isPhysics = sess.subject === 'PHYSICS';
+                const isChem = sess.subject === 'CHEMISTRY';
+                const isMath = sess.subject === 'MATHEMATICS';
 
-            {/* Resume Action Buttons */}
-            <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <button
-                type="button"
-                disabled={loading || abandoning}
-                onClick={() => handleResumeSession(activeSession)}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-[#FF9D50] hover:bg-[#FFAA66] text-[#080A0E] text-xs font-bold transition-all shadow-md active:scale-[0.99] disabled:opacity-50 cursor-pointer"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Loading session...</span>
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-3.5 h-3.5 fill-current" />
-                    <span>Resume Session</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </>
-                )}
-              </button>
+                const subjectColor = isPhysics
+                  ? 'text-[#FF9D50] border-[#FF9D50]/30 bg-[#FF9D50]/10'
+                  : isChem
+                  ? 'text-[#20C4D0] border-[#20C4D0]/30 bg-[#20C4D0]/10'
+                  : isMath
+                  ? 'text-[#50D97A] border-[#50D97A]/30 bg-[#50D97A]/10'
+                  : 'text-zinc-300 border-white/[0.1] bg-white/[0.04]';
 
-              <button
-                type="button"
-                disabled={loading || abandoning}
-                onClick={() => {
-                  if (confirm('Discard this in-progress session and start fresh?')) {
-                    handleAbandonSession(activeSession.sessionId);
-                  }
-                }}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] text-zinc-400 hover:text-rose-400 border border-white/[0.08] hover:border-rose-500/30 text-xs font-medium transition-colors disabled:opacity-50 cursor-pointer"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Discard & Start New</span>
-              </button>
+                const barColor = isPhysics
+                  ? 'bg-[#FF9D50]'
+                  : isChem
+                  ? 'bg-[#20C4D0]'
+                  : isMath
+                  ? 'bg-[#50D97A]'
+                  : 'bg-zinc-400';
+
+                const progressPercent = Math.max(
+                  5,
+                  Math.round((sess.answeredCount / sess.totalQuestions) * 100)
+                );
+                const remaining = Math.max(0, sess.totalQuestions - sess.answeredCount);
+                const isResumingThis = resumingSessionId === sess.sessionId;
+                const isAbandoningThis = abandoningSessionId === sess.sessionId;
+
+                return (
+                  <div
+                    key={sess.sessionId}
+                    className="rounded-xl border border-white/[0.08] bg-[#0C0E14] p-4 sm:p-5 shadow-lg space-y-3.5 hover:border-white/[0.14] transition-all relative overflow-hidden"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${subjectColor}`}
+                          >
+                            {sess.subject
+                              ? sess.subject.charAt(0) + sess.subject.slice(1).toLowerCase()
+                              : 'JEE Practice'}
+                          </span>
+                          <span className="text-[11px] font-mono text-zinc-500">
+                            {formatLastActive(sess.lastActivityAt)}
+                          </span>
+                        </div>
+
+                        <h3 className="text-sm font-semibold text-white truncate pt-0.5">
+                          {sess.chapter || 'Mixed Practice'}
+                        </h3>
+
+                        <p className="text-xs text-zinc-400">
+                          {sess.answeredCount} of {sess.totalQuestions} answered ·{' '}
+                          <strong className="text-zinc-200">
+                            {remaining === 0 ? 'Ready to complete' : `${remaining} questions left`}
+                          </strong>
+                        </p>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <span className="text-xs font-mono text-zinc-400 block">
+                          Q{sess.currentQuestionIndex + 1} of {sess.totalQuestions}
+                        </span>
+                        <span className="text-[10px] text-zinc-500 mt-0.5 block">
+                          {sess.difficulty || 'Mixed'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="w-full bg-white/[0.06] h-1.5 rounded-full overflow-hidden">
+                      <div
+                        className={`${barColor} h-full transition-all duration-300 rounded-full`}
+                        style={{ width: `${progressPercent}%` }}
+                      />
+                    </div>
+
+                    {/* Action Row */}
+                    <div className="flex items-center justify-between pt-1 gap-2">
+                      <button
+                        type="button"
+                        disabled={isResumingThis || isAbandoningThis}
+                        onClick={() => handleResumeSessionById(sess.sessionId)}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#FF9D50] hover:bg-[#FFAA66] text-[#080A0E] text-xs font-bold transition-all shadow-sm active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+                      >
+                        {isResumingThis ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Loading...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Play className="w-3.5 h-3.5 fill-current" />
+                            <span>Resume</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={isResumingThis || isAbandoningThis}
+                        onClick={() => {
+                          if (confirm(`Discard this ${sess.subject || 'practice'} session?`)) {
+                            handleAbandonSession(sess.sessionId);
+                          }
+                        }}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/[0.02] hover:bg-white/[0.06] text-zinc-400 hover:text-rose-400 border border-white/[0.06] hover:border-rose-500/30 text-xs transition-colors disabled:opacity-50 cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Discard</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
 
-        {/* Configuration Form */}
+        {/* Configuration Form for New Session */}
         <div className="space-y-6 pt-2">
-          {activeSession && (
+          {activeSessions.length > 0 && (
             <div className="flex items-center gap-3">
               <div className="h-px flex-1 bg-white/[0.06]" />
               <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider">
-                Or Configure New Session
+                Start a New Session
               </span>
               <div className="h-px flex-1 bg-white/[0.06]" />
             </div>
@@ -710,10 +789,7 @@ export function PracticeContainer({
             <PracticeTimer startTime={startTime} />
             <button
               type="button"
-              onClick={() => {
-                // Exit safely preserves active session in DB for later resume
-                setScreenState('CONFIG');
-              }}
+              onClick={handleExitPractice}
               className="text-zinc-400 hover:text-white transition-colors cursor-pointer text-xs font-medium"
             >
               Exit & Save
@@ -1125,9 +1201,13 @@ export function PracticeContainer({
 
           <button
             type="button"
-            onClick={() => {
+            onClick={async () => {
               setScreenState('CONFIG');
               setResultsSummary(null);
+              const res = await getActiveSessionsAction();
+              if (res.success && res.data) {
+                setActiveSessions(res.data);
+              }
             }}
             className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-lg bg-[#FF9D50] hover:bg-[#FFAA66] text-[#080A0E] text-xs font-semibold tracking-wide transition-all shadow-sm active:scale-[0.99] cursor-pointer"
           >
