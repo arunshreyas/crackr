@@ -46,12 +46,11 @@ export function AppSidebar() {
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/practice', label: 'Practice', icon: BookOpen },
     { href: '/progress', label: 'Progress', icon: TrendingUp },
-    { href: '/profile', label: 'Ranks & Levels', icon: Award },
+    { href: '/profile', label: 'Leaderboard & Ranks', icon: Award },
   ];
 
   const secondaryNav = [
     { href: '/settings', label: 'Settings', icon: Settings },
-    { href: '/profile', label: 'Profile', icon: User },
   ];
 
   return (
@@ -113,7 +112,7 @@ export function AppSidebar() {
               }`}
             >
               <Icon className={`w-4 h-4 ${isActive ? 'text-[#FF9D50]' : 'text-zinc-400'}`} />
-              <span>{item.label === 'Ranks & Levels' ? 'Ranks' : item.label}</span>
+              <span>{item.label === 'Leaderboard & Ranks' ? 'Ranks' : item.label}</span>
             </Link>
           );
         })}
