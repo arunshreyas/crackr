@@ -78,10 +78,10 @@ export function OnboardingForm({
   };
 
   const gradeOptions = [
-    { label: 'Class 11', desc: 'Target 2027' },
-    { label: 'Class 12', desc: 'Target 2026' },
-    { label: 'Dropper / Repeater', desc: 'Target 2026' },
-    { label: 'Early Prep', desc: 'Foundation' },
+    { label: 'Class 11', desc: '11th Grade Syllabus' },
+    { label: 'Class 12', desc: '12th Grade Syllabus' },
+    { label: 'Dropper / Repeater', desc: 'Full JEE Syllabus' },
+    { label: 'Early Prep', desc: 'Foundation Prep' },
   ];
 
   const streamOptions: Array<{ id: Stream; name: string; desc: string }> = [
