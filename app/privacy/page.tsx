@@ -2,8 +2,8 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy — Crackr',
-  description: 'Understand how Crackr collects, uses, and protects your practice and personal data.',
+  title: 'Privacy Policy — Crackrr',
+  description: 'Understand how Crackrr collects, uses, and protects your practice and personal data.',
 };
 
 export default function PrivacyPolicyPage() {
@@ -16,7 +16,7 @@ export default function PrivacyPolicyPage() {
         <header className="flex items-center justify-between pb-8 mb-8 border-b border-white/[0.08]">
           <Link href="/" className="inline-flex items-center gap-1.5 group">
             <span className="text-xl font-bold tracking-tight text-white group-hover:text-[#FF9D50] transition-colors">
-              crackr<span className="text-[#FF9D50]">•</span>
+              crackrr<span className="text-[#FF9D50]">•</span>
             </span>
           </Link>
           <Link
@@ -37,7 +37,7 @@ export default function PrivacyPolicyPage() {
           <section className="space-y-3">
             <h2 className="text-base font-semibold text-white">1. Introduction</h2>
             <p>
-              Crackr (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) provides an adaptive practice platform for students preparing for competitive examinations like JEE. This Privacy Policy outlines how we collect, use, disclose, and safeguard your information when you access or use our web application at <code className="text-white font-mono text-xs">crackrr.vercel.app</code>.
+              Crackrr (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) provides an adaptive practice platform for students preparing for competitive examinations like JEE. This Privacy Policy outlines how we collect, use, disclose, and safeguard your information when you access or use our web application at <code className="text-white font-mono text-xs">crackrr.vercel.app</code>.
             </p>
           </section>
 
@@ -105,14 +105,14 @@ export default function PrivacyPolicyPage() {
           <section className="space-y-3">
             <h2 className="text-base font-semibold text-white">7. Contact Us</h2>
             <p>
-              If you have any questions or concerns regarding this Privacy Policy, please contact us at <code className="text-white font-mono text-xs">privacy@crackr.app</code> or through our GitHub repository.
+              If you have any questions or concerns regarding this Privacy Policy, please contact us at <code className="text-white font-mono text-xs">privacy@crackrr.app</code> or through our GitHub repository.
             </p>
           </section>
         </main>
 
         {/* Footer */}
         <footer className="mt-12 pt-6 border-t border-white/[0.08] text-center text-xs text-zinc-500">
-          Crackr • Practice smarter. Get better. Faster.
+          Crackrr • Practice smarter. Get better. Faster.
         </footer>
       </div>
     </div>

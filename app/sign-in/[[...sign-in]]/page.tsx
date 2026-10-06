@@ -17,7 +17,7 @@ export default function SignInPage() {
           className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] hover:border-white/[0.15] transition-all"
         >
           <span className="text-base font-bold tracking-tight text-white">
-            crackr<span className="text-[#ff9e4f]">•</span>
+            crackrr<span className="text-[#ff9e4f]">•</span>
           </span>
         </Link>
         <p className="text-xs text-zinc-400">Welcome back to your practice workspace</p>

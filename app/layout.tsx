@@ -20,8 +20,8 @@ const BASE_URL = 'https://crackrr.vercel.app'
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
   title: {
-    default: 'Crackr — JEE MCQ Practice & Diagnostic Mastery',
-    template: '%s | Crackr',
+    default: 'Crackrr — JEE MCQ Practice & Diagnostic Mastery',
+    template: '%s | Crackrr',
   },
   description:
     'Targeted JEE Main & Advanced practice platform with real PYQs, atomic answer validation, chapter-level diagnostics, and gamified progress tracking.',
@@ -32,11 +32,11 @@ export const metadata: Metadata = {
     'Physics practice',
     'Chemistry practice',
     'Mathematics practice',
-    'Crackr',
+    'Crackrr',
   ],
-  authors: [{ name: 'Crackr Team' }],
-  creator: 'Crackr',
-  publisher: 'Crackr',
+  authors: [{ name: 'Crackrr Team' }],
+  creator: 'Crackrr',
+  publisher: 'Crackrr',
   formatDetection: {
     email: false,
     address: false,
@@ -46,17 +46,17 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     url: BASE_URL,
-    title: 'Crackr — JEE MCQ Practice & Diagnostic Mastery',
+    title: 'Crackrr — JEE MCQ Practice & Diagnostic Mastery',
     description:
       'Practice smarter with verified JEE questions, instant step-by-step diagnostic feedback, and structured mastery tracking.',
-    siteName: 'Crackr',
+    siteName: 'Crackrr',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Crackr — JEE MCQ Practice & Diagnostic Mastery',
+    title: 'Crackrr — JEE MCQ Practice & Diagnostic Mastery',
     description:
       'Practice smarter with verified JEE questions, instant step-by-step diagnostic feedback, and structured mastery tracking.',
-    creator: '@crackrapp',
+    creator: '@crackrrapp',
   },
   robots: {
     index: true,
@@ -77,7 +77,7 @@ export const metadata: Metadata = {
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
-  name: 'Crackr',
+  name: 'Crackrr',
   applicationCategory: 'EducationalApplication',
   operatingSystem: 'Any (Web Browser)',
   offers: {

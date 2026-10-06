@@ -62,7 +62,7 @@ export function AppSidebar() {
           {/* Brand Logo */}
           <Link href="/dashboard" className="flex items-center gap-1.5 px-3 py-1 group">
             <span className="font-semibold text-lg tracking-tight text-white group-hover:text-[#FF9D50] transition-colors">
-              crackr<span className="text-[#FF9D50]">•</span>
+              crackrr<span className="text-[#FF9D50]">•</span>
             </span>
           </Link>
 

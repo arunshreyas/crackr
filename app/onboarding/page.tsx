@@ -49,7 +49,7 @@ export default async function OnboardingPage() {
       <header className="w-full max-w-xl mx-auto flex items-center justify-between">
         <Link href="/" className="inline-flex items-center gap-1.5 group">
           <span className="text-xl font-semibold tracking-tight text-white group-hover:text-[#ff9d50] transition-colors">
-            crackr<span className="text-[#ff9d50]">•</span>
+            crackrr<span className="text-[#ff9d50]">•</span>
           </span>
         </Link>
       </header>
@@ -78,7 +78,7 @@ export default async function OnboardingPage() {
 
       {/* Footer */}
       <footer className="w-full max-w-xl mx-auto text-center text-xs text-zinc-500 py-4">
-        Crackr • Practice smarter.
+        Crackrr • Practice smarter.
       </footer>
     </div>
   );

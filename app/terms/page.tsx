@@ -2,8 +2,8 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Terms of Service — Crackr',
-  description: 'Terms and conditions governing the use of Crackr practice platform.',
+  title: 'Terms of Service — Crackrr',
+  description: 'Terms and conditions governing the use of Crackrr practice platform.',
 };
 
 export default function TermsOfServicePage() {
@@ -16,7 +16,7 @@ export default function TermsOfServicePage() {
         <header className="flex items-center justify-between pb-8 mb-8 border-b border-white/[0.08]">
           <Link href="/" className="inline-flex items-center gap-1.5 group">
             <span className="text-xl font-bold tracking-tight text-white group-hover:text-[#FF9D50] transition-colors">
-              crackr<span className="text-[#FF9D50]">•</span>
+              crackrr<span className="text-[#FF9D50]">•</span>
             </span>
           </Link>
           <Link
@@ -37,24 +37,24 @@ export default function TermsOfServicePage() {
           <section className="space-y-3">
             <h2 className="text-base font-semibold text-white">1. Acceptance of Terms</h2>
             <p>
-              By creating an account or accessing the Crackr platform (&quot;Service&quot;), you agree to be bound by these Terms of Service (&quot;Terms&quot;). If you do not agree to these Terms, please do not use the Service.
+              By creating an account or accessing the Crackrr platform (&quot;Service&quot;), you agree to be bound by these Terms of Service (&quot;Terms&quot;). If you do not agree to these Terms, please do not use the Service.
             </p>
           </section>
 
           <section className="space-y-3">
             <h2 className="text-base font-semibold text-white">2. Educational & Practice Use</h2>
             <p>
-              Crackr is an independent academic preparation and diagnostic tool designed to help students practice and review questions for competitive examinations (such as JEE Main and Advanced). Crackr is not affiliated with, sponsored by, or endorsed by the National Testing Agency (NTA), the Joint Admission Board (JAB), or any government body.
+              Crackrr is an independent academic preparation and diagnostic tool designed to help students practice and review questions for competitive examinations (such as JEE Main and Advanced). Crackrr is not affiliated with, sponsored by, or endorsed by the National Testing Agency (NTA), the Joint Admission Board (JAB), or any government body.
             </p>
           </section>
 
           <section className="space-y-3">
             <h2 className="text-base font-semibold text-white">3. Intellectual Property & Content Disclaimer</h2>
             <p>
-              The platform code, UI design, analytics algorithms, and branding are the property of Crackr. Previous year examination questions included in our practice repository are used solely for educational, nominative, and transformative review purposes.
+              The platform code, UI design, analytics algorithms, and branding are the property of Crackrr. Previous year examination questions included in our practice repository are used solely for educational, nominative, and transformative review purposes.
             </p>
             <p>
-              If you believe any content on Crackr infringes your copyright or intellectual property rights, please notify us immediately at <code className="text-white font-mono text-xs">copyright@crackr.app</code> with details of the affected item for prompt review and resolution.
+              If you believe any content on Crackrr infringes your copyright or intellectual property rights, please notify us immediately at <code className="text-white font-mono text-xs">copyright@crackrr.app</code> with details of the affected item for prompt review and resolution.
             </p>
           </section>
 
@@ -81,7 +81,7 @@ export default function TermsOfServicePage() {
           <section className="space-y-3">
             <h2 className="text-base font-semibold text-white">6. Disclaimers & Limitation of Liability</h2>
             <p>
-              THE SERVICE IS PROVIDED ON AN &quot;AS IS&quot; AND &quot;AS AVAILABLE&quot; BASIS WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED. CRACKR DOES NOT GUARANTEE SPECIFIC EXAMINATION RESULTS, RANK OUTCOMES, OR ERROR-FREE QUESTION FORMULAS. IN NO EVENT SHALL CRACKR BE LIABLE FOR ANY INDIRECT, INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING FROM YOUR USE OF THE SERVICE.
+              THE SERVICE IS PROVIDED ON AN &quot;AS IS&quot; AND &quot;AS AVAILABLE&quot; BASIS WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED. CRACKRR DOES NOT GUARANTEE SPECIFIC EXAMINATION RESULTS, RANK OUTCOMES, OR ERROR-FREE QUESTION FORMULAS. IN NO EVENT SHALL CRACKRR BE LIABLE FOR ANY INDIRECT, INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING FROM YOUR USE OF THE SERVICE.
             </p>
           </section>
 
@@ -95,14 +95,14 @@ export default function TermsOfServicePage() {
           <section className="space-y-3">
             <h2 className="text-base font-semibold text-white">8. Contact Information</h2>
             <p>
-              For legal notices or questions regarding these Terms, please contact <code className="text-white font-mono text-xs">legal@crackr.app</code>.
+              For legal notices or questions regarding these Terms, please contact <code className="text-white font-mono text-xs">legal@crackrr.app</code>.
             </p>
           </section>
         </main>
 
         {/* Footer */}
         <footer className="mt-12 pt-6 border-t border-white/[0.08] text-center text-xs text-zinc-500">
-          Crackr • Practice smarter. Get better. Faster.
+          Crackrr • Practice smarter. Get better. Faster.
         </footer>
       </div>
     </div>

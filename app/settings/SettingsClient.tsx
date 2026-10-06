@@ -229,7 +229,7 @@ export function SettingsClient({ initialProfile }: SettingsClientProps) {
                 <div>
                   <h2 className="text-base font-semibold text-white">Student Details</h2>
                   <p className="text-xs text-zinc-400">
-                    Your personal and academic identity on Crackr
+                    Your personal and academic identity on Crackrr
                   </p>
                 </div>
               </div>
@@ -333,7 +333,7 @@ export function SettingsClient({ initialProfile }: SettingsClientProps) {
                   Danger Zone
                 </h2>
                 <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                  Permanently delete your Crackr account, study sessions, question answer history, XP, and rank progress. This action cannot be undone.
+                  Permanently delete your Crackrr account, study sessions, question answer history, XP, and rank progress. This action cannot be undone.
                 </p>
               </div>
 

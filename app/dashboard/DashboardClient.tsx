@@ -35,7 +35,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
 
         {/* Dashboard Body */}
         <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-8 py-8 space-y-8">
-          {/* 1. Page Greeting & Primary Crackr CTA */}
+          {/* 1. Page Greeting & Primary Crackrr CTA */}
           <section className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">

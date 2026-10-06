@@ -33,7 +33,7 @@ export default function Home() {
           {/* Brand Logo */}
           <Link href="/" className="flex items-center gap-1.5 group">
             <span className="font-semibold text-base tracking-tight text-white flex items-center group-hover:text-[#ff9e4f] transition-colors">
-              crackr<span className="text-[#ff9e4f] ml-0.5">•</span>
+              crackrr<span className="text-[#ff9e4f] ml-0.5">•</span>
             </span>
           </Link>
 
@@ -379,7 +379,7 @@ export default function Home() {
                 Engineered for deliberate practice.
               </h2>
               <p className="mt-3 text-base text-zinc-400 font-normal leading-relaxed">
-                Passive reading creates an illusion of competence. Crackr replaces
+                Passive reading creates an illusion of competence. Crackrr replaces
                 it with high-frequency problem retrieval and diagnostic feedback.
               </p>
             </div>
@@ -619,19 +619,19 @@ export default function Home() {
           </div>
         </section>
 
-        {/* SUPPORT CRACKR SECTION */}
+        {/* SUPPORT CRACKRR SECTION */}
         <section id="support" className="py-24 px-4 sm:px-6 lg:px-8 border-t border-white/[0.06]">
           <div className="max-w-md mx-auto text-center space-y-6">
             <div className="text-[11px] font-semibold text-[#ff9e4f] uppercase tracking-widest">
-              Support Crackr
+              Support Crackrr
             </div>
 
             <div className="space-y-3">
               <h2 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">
-                Help keep Crackr running.
+                Help keep Crackrr running.
               </h2>
               <p className="text-sm text-zinc-400 leading-relaxed font-normal">
-                Crackr is a small independent project built to make JEE practice a little better. If it&apos;s useful to you, you can help me keep the lights on.
+                Crackrr is a small independent project built to make JEE practice a little better. If it&apos;s useful to you, you can help me keep the lights on.
               </p>
             </div>
 
@@ -640,7 +640,7 @@ export default function Home() {
               <div className="w-40 h-40 sm:w-44 sm:h-44 p-2 rounded-xl bg-white/[0.02] border border-white/[0.1] flex items-center justify-center">
                 <Image
                   src="/coffee-qr.png"
-                  alt="Scan to support Crackr"
+                  alt="Scan to support Crackrr"
                   width={160}
                   height={160}
                   className="w-full h-full object-contain rounded-lg"
@@ -692,9 +692,9 @@ export default function Home() {
         <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-white tracking-tight text-sm">
-              crackr<span className="text-[#ff9e4f]">•</span>
+              crackrr<span className="text-[#ff9e4f]">•</span>
             </span>
-            <span className="text-zinc-500">© 2026 Crackr Inc.</span>
+            <span className="text-zinc-500">© 2026 Crackrr Inc.</span>
           </div>
 
           <div className="flex items-center gap-6">

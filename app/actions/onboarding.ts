@@ -61,7 +61,7 @@ export async function submitOnboarding(data: OnboardingInput) {
       },
       create: {
         clerkId: userId,
-        email: email || `${username}@user.crackr`,
+        email: email || `${username}@user.crackrr`,
         name: data.name.trim(),
         username,
         school: data.school.trim(),
