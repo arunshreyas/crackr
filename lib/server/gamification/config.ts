@@ -90,6 +90,147 @@ export function calculateRank(xp: number): {
   };
 }
 
+export interface AccuracyRankTier {
+  name: string;
+  minCorrect: number;
+  badge: string;
+  desc: string;
+}
+
+export const ACCURACY_RANKS: AccuracyRankTier[] = [
+  { name: 'Apprentice Solver', minCorrect: 0, badge: '🎯', desc: 'Starting your question accuracy journey' },
+  { name: 'Precision Striker', minCorrect: 25, badge: '🏹', desc: '25+ accurate solutions delivered' },
+  { name: 'Master Marksman', minCorrect: 100, badge: '🎖️', desc: '100+ precision solves across JEE topics' },
+  { name: 'Bullseye Prodigy', minCorrect: 250, badge: '⚡', desc: '250+ correct answers with high accuracy' },
+  { name: 'Grandmaster Sniper', minCorrect: 500, badge: '👑', desc: '500+ elite correct solutions in competitive JEE' },
+];
+
+export function calculateAccuracyRank(correct: number): {
+  rank: string;
+  badge: string;
+  tier: number;
+  nextRank: string | null;
+  neededForNext: number | null;
+} {
+  let currentRank = ACCURACY_RANKS[0];
+  let tier = 1;
+  let nextRankTier: AccuracyRankTier | null = ACCURACY_RANKS[1] || null;
+
+  for (let i = 0; i < ACCURACY_RANKS.length; i++) {
+    if (correct >= ACCURACY_RANKS[i].minCorrect) {
+      currentRank = ACCURACY_RANKS[i];
+      tier = i + 1;
+      nextRankTier = ACCURACY_RANKS[i + 1] || null;
+    } else {
+      break;
+    }
+  }
+
+  const neededForNext = nextRankTier ? Math.max(0, nextRankTier.minCorrect - correct) : null;
+
+  return {
+    rank: currentRank.name,
+    badge: currentRank.badge,
+    tier,
+    nextRank: nextRankTier ? nextRankTier.name : null,
+    neededForNext,
+  };
+}
+
+export interface StreakRankTier {
+  name: string;
+  minStreak: number;
+  badge: string;
+  desc: string;
+}
+
+export const STREAK_RANKS: StreakRankTier[] = [
+  { name: 'Spark', minStreak: 0, badge: '🕯️', desc: 'Igniting daily practice' },
+  { name: 'Flame', minStreak: 3, badge: '🔥', desc: '3+ consecutive days active' },
+  { name: 'Blaze', minStreak: 7, badge: '⚡', desc: '7+ active day streak' },
+  { name: 'Inferno', minStreak: 14, badge: '🌋', desc: '14+ unbroken days of practice' },
+  { name: 'Immortal', minStreak: 30, badge: '🛡️', desc: '30+ day streak — master discipline' },
+];
+
+export function calculateStreakRank(streak: number): {
+  rank: string;
+  badge: string;
+  tier: number;
+  nextRank: string | null;
+  neededForNext: number | null;
+} {
+  let currentRank = STREAK_RANKS[0];
+  let tier = 1;
+  let nextRankTier: StreakRankTier | null = STREAK_RANKS[1] || null;
+
+  for (let i = 0; i < STREAK_RANKS.length; i++) {
+    if (streak >= STREAK_RANKS[i].minStreak) {
+      currentRank = STREAK_RANKS[i];
+      tier = i + 1;
+      nextRankTier = STREAK_RANKS[i + 1] || null;
+    } else {
+      break;
+    }
+  }
+
+  const neededForNext = nextRankTier ? Math.max(0, nextRankTier.minStreak - streak) : null;
+
+  return {
+    rank: currentRank.name,
+    badge: currentRank.badge,
+    tier,
+    nextRank: nextRankTier ? nextRankTier.name : null,
+    neededForNext,
+  };
+}
+
+export interface VolumeRankTier {
+  name: string;
+  minQuestions: number;
+  badge: string;
+  desc: string;
+}
+
+export const VOLUME_RANKS: VolumeRankTier[] = [
+  { name: 'Explorer', minQuestions: 0, badge: '🧭', desc: 'Exploring the question bank' },
+  { name: 'Dedicated Aspirant', minQuestions: 50, badge: '📖', desc: '50+ problems tackled' },
+  { name: 'High-Output Grinder', minQuestions: 200, badge: '⚙️', desc: '200+ problems in the trenches' },
+  { name: 'Marathoner', minQuestions: 500, badge: '🏃', desc: '500+ questions completed' },
+  { name: 'Iron Will Titan', minQuestions: 1000, badge: '🏛️', desc: '1,000+ problems conquered' },
+];
+
+export function calculateVolumeRank(answered: number): {
+  rank: string;
+  badge: string;
+  tier: number;
+  nextRank: string | null;
+  neededForNext: number | null;
+} {
+  let currentRank = VOLUME_RANKS[0];
+  let tier = 1;
+  let nextRankTier: VolumeRankTier | null = VOLUME_RANKS[1] || null;
+
+  for (let i = 0; i < VOLUME_RANKS.length; i++) {
+    if (answered >= VOLUME_RANKS[i].minQuestions) {
+      currentRank = VOLUME_RANKS[i];
+      tier = i + 1;
+      nextRankTier = VOLUME_RANKS[i + 1] || null;
+    } else {
+      break;
+    }
+  }
+
+  const neededForNext = nextRankTier ? Math.max(0, nextRankTier.minQuestions - answered) : null;
+
+  return {
+    rank: currentRank.name,
+    badge: currentRank.badge,
+    tier,
+    nextRank: nextRankTier ? nextRankTier.name : null,
+    neededForNext,
+  };
+}
+
 export const V1_ACHIEVEMENTS = [
   {
     code: 'FIRST_CRACK',
