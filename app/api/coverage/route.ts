@@ -51,11 +51,11 @@ export async function GET() {
       });
     }
 
-    const answered = profile?.questionsAnswered ?? 38;
-    const correct = profile?.questionsCorrect ?? 32;
+    const answered = profile?.questionsAnswered ?? 0;
+    const correct = profile?.questionsCorrect ?? 0;
     const dailyGoal = profile?.dailyGoal ?? 25;
-    const xp = profile?.xp ?? 1240;
-    const currentStreak = profile?.currentStreak ?? 7;
+    const xp = profile?.xp ?? 0;
+    const currentStreak = profile?.currentStreak ?? 0;
     const stream = profile?.stream ?? 'PCM';
 
     const accuracy = answered > 0 ? Number(((correct / answered) * 100).toFixed(1)) : 0;

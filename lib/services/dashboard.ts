@@ -129,6 +129,49 @@ export async function getDashboardData(clerkUserId: string): Promise<DashboardDa
 
   if (!profile) return null;
 
+  // Lifetime answer stats check to ensure UserProfile is 100% in sync without losing any XP
+  const [allAnswers, xpTxAgg] = await Promise.all([
+    prisma.quizAnswer.findMany({
+      where: { userId: profile.id },
+      select: { isCorrect: true },
+    }),
+    prisma.xPTransaction.aggregate({
+      where: { userId: profile.id },
+      _sum: { amount: true },
+    }),
+  ]);
+
+  const totalAnsweredCount = allAnswers.length;
+  const totalCorrectCount = allAnswers.filter((a) => a.isCorrect).length;
+  const answerXp = totalCorrectCount * 20 + (totalAnsweredCount - totalCorrectCount) * 5;
+  const transactionXp = xpTxAgg._sum.amount || 0;
+
+  const authoritativeXp = Math.max(profile.xp, answerXp, transactionXp);
+  const authoritativeAnswered = Math.max(profile.questionsAnswered, totalAnsweredCount);
+  const authoritativeCorrect = Math.max(profile.questionsCorrect, totalCorrectCount);
+  const { level: authoritativeLevel } = calculateLevel(authoritativeXp);
+
+  if (
+    authoritativeXp !== profile.xp ||
+    authoritativeAnswered !== profile.questionsAnswered ||
+    authoritativeCorrect !== profile.questionsCorrect ||
+    authoritativeLevel !== profile.level
+  ) {
+    await prisma.userProfile.update({
+      where: { id: profile.id },
+      data: {
+        xp: authoritativeXp,
+        questionsAnswered: authoritativeAnswered,
+        questionsCorrect: authoritativeCorrect,
+        level: authoritativeLevel,
+      },
+    });
+    profile.xp = authoritativeXp;
+    profile.questionsAnswered = authoritativeAnswered;
+    profile.questionsCorrect = authoritativeCorrect;
+    profile.level = authoritativeLevel;
+  }
+
   const now = new Date();
   const startOfToday = getStartOfDay(now);
 

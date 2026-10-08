@@ -202,6 +202,7 @@ export function PracticeContainer({
       const currQ = qList[targetIdx];
       if (currQ && answeredMap[currQ.id]) {
         const existing = answeredMap[currQ.id];
+        const earned = existing.isCorrect ? 20 : 5;
         setSelectedOption(existing.selectedOption);
         setAnswerResult({
           isCorrect: existing.isCorrect,
@@ -210,7 +211,7 @@ export function PracticeContainer({
           topic: currQ.topic || currQ.chapter,
           chapter: currQ.chapter,
           subject: currQ.subject,
-          xpEarned: 15,
+          xpEarned: earned,
           newTotalXp: 0,
           newLevel: 1,
           leveledUp: false,
@@ -330,6 +331,7 @@ export function PracticeContainer({
       const existing = nextQ ? sessionAnsweredMap[nextQ.id] : null;
 
       if (existing) {
+        const earned = existing.isCorrect ? 20 : 5;
         setSelectedOption(existing.selectedOption);
         setAnswerResult({
           isCorrect: existing.isCorrect,
@@ -338,7 +340,7 @@ export function PracticeContainer({
           topic: nextQ.topic || nextQ.chapter,
           chapter: nextQ.chapter,
           subject: nextQ.subject,
-          xpEarned: 15,
+          xpEarned: earned,
           newTotalXp: 0,
           newLevel: 1,
           leveledUp: false,
@@ -390,6 +392,7 @@ export function PracticeContainer({
     const existing = targetQ ? sessionAnsweredMap[targetQ.id] : null;
 
     if (existing) {
+      const earned = existing.isCorrect ? 20 : 5;
       setSelectedOption(existing.selectedOption);
       setAnswerResult({
         isCorrect: existing.isCorrect,
@@ -398,7 +401,7 @@ export function PracticeContainer({
         topic: targetQ.topic || targetQ.chapter,
         chapter: targetQ.chapter,
         subject: targetQ.subject,
-        xpEarned: 15,
+        xpEarned: earned,
         newTotalXp: 0,
         newLevel: 1,
         leveledUp: false,
