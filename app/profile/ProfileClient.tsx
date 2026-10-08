@@ -50,7 +50,7 @@ export function ProfileClient({ data }: ProfileClientProps) {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 pb-20 md:pb-10">
         {/* Top Header */}
-        <header className="border-b border-white/[0.08] bg-[#0C0E14]/70 backdrop-blur-md px-6 py-4 flex items-center justify-between sticky top-0 z-30">
+        <header className="hidden md:flex border-b border-white/[0.08] bg-[#0C0E14]/70 backdrop-blur-md px-6 py-4 items-center justify-between sticky top-0 z-30">
           <div>
             <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
               <Trophy className="w-5 h-5 text-[#FF9D50]" />

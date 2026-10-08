@@ -6,6 +6,18 @@ import { checkAndClaimDailyLoginReward, DailyLoginStatus } from '@/lib/server/ga
 
 export interface DashboardData {
   dailyReward: DailyLoginStatus;
+  activeSession: {
+    sessionId: string;
+    subject: QuestionSubject | null;
+    chapter: string;
+    difficulty: string | null;
+    totalQuestions: number;
+    answeredCount: number;
+    remainingQuestions: number;
+    currentQuestionIndex: number;
+    lastActivityAt: string;
+  } | null;
+  activeSessionsCount: number;
   profile: {
     name: string;
     username: string;
@@ -205,12 +217,46 @@ export async function getDashboardData(clerkUserId: string): Promise<DashboardDa
     orderBy: { createdAt: 'asc' },
   });
 
-  // 2. Fetch user's recent sessions
-  const recentSessionsData = await prisma.quizSession.findMany({
-    where: { userId: profile.id },
-    orderBy: { createdAt: 'desc' },
-    take: 5,
-  });
+  // 2. Fetch user's active persistent sessions and recent completed sessions
+  const [activeSessionsData, recentSessionsData] = await Promise.all([
+    prisma.quizSession.findMany({
+      where: {
+        userId: profile.id,
+        status: 'ACTIVE',
+        completedAt: null,
+      },
+      orderBy: { lastActivityAt: 'desc' },
+      include: {
+        _count: {
+          select: { answers: true },
+        },
+      },
+    }),
+    prisma.quizSession.findMany({
+      where: { userId: profile.id },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    }),
+  ]);
+
+  const validActiveSessions = activeSessionsData.filter((s) => s.questionIds && s.questionIds.length > 0);
+  const latestActive = validActiveSessions[0] || null;
+  const activeSession = latestActive
+    ? {
+        sessionId: latestActive.id,
+        subject: latestActive.subject,
+        chapter: latestActive.chapter || 'Mixed Practice',
+        difficulty: latestActive.difficulty,
+        totalQuestions: latestActive.totalQuestions || latestActive.questionIds.length,
+        answeredCount: latestActive._count.answers,
+        remainingQuestions: Math.max(
+          0,
+          (latestActive.totalQuestions || latestActive.questionIds.length) - latestActive._count.answers
+        ),
+        currentQuestionIndex: latestActive.currentQuestionIndex,
+        lastActivityAt: latestActive.lastActivityAt.toISOString(),
+      }
+    : null;
 
   // Group answers by Date string (YYYY-MM-DD)
   const answersByDate = new Map<string, { total: number; correct: number; timeSecs: number }>();
@@ -461,6 +507,8 @@ export async function getDashboardData(clerkUserId: string): Promise<DashboardDa
 
   return {
     dailyReward,
+    activeSession,
+    activeSessionsCount: validActiveSessions.length,
     profile: {
       name: profile.name,
       username: profile.username,

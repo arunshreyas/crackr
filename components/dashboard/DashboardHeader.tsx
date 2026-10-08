@@ -22,7 +22,7 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({ name, grade, stream, rankInfo, levelInfo }: DashboardHeaderProps) {
   return (
-    <header className="h-16 border-b border-white/[0.08] bg-[#0C0E14]/80 backdrop-blur-md sticky top-0 z-30 px-6 sm:px-8 flex items-center justify-between">
+    <header className="hidden md:flex h-16 border-b border-white/[0.08] bg-[#0C0E14]/80 backdrop-blur-md sticky top-0 z-30 px-6 sm:px-8 items-center justify-between">
       <div className="flex items-center gap-3">
         <h2 className="text-sm font-semibold text-white tracking-tight">
           Dashboard

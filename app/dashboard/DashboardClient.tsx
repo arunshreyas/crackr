@@ -12,6 +12,7 @@ import { ProgressCharts } from '@/components/dashboard/ProgressCharts';
 import { SubjectPerformance } from '@/components/dashboard/SubjectPerformance';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
 import { DailyRewardCard } from '@/components/dashboard/DailyRewardCard';
+import { PrimaryActionHero } from '@/components/dashboard/PrimaryActionHero';
 
 interface DashboardClientProps {
   data: DashboardData;
@@ -35,28 +36,28 @@ export function DashboardClient({ data }: DashboardClientProps) {
         />
 
         {/* Dashboard Body */}
-        <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-8 py-8 space-y-8">
-          {/* 1. Page Greeting & Primary Crackrr CTA */}
-          <section className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
+          {/* 1. Primary Practice Action Hero (Resume or Start Practice) */}
+          <PrimaryActionHero
+            activeSession={data.activeSession}
+            activeSessionsCount={data.activeSessionsCount}
+            recommendation={data.recommendation}
+            today={data.today}
+          />
+
+          {/* 2. Page Greeting Headline */}
+          <section className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-semibold text-white tracking-tight">
                 {data.greeting.headline}
               </h1>
-              <p className="text-sm text-zinc-400 mt-1">
+              <p className="text-xs sm:text-sm text-zinc-400 mt-0.5">
                 {data.greeting.subline}
               </p>
             </div>
-
-            <Link
-              href="/practice"
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#FF9D50] hover:bg-[#FFAA66] text-[#080A0E] text-xs font-semibold tracking-wide transition-all shadow-sm active:scale-[0.99] self-start sm:self-auto"
-            >
-              <span>{data.recommendation.actionText}</span>
-              <span aria-hidden="true">→</span>
-            </Link>
           </section>
 
-          {/* 1.5 Daily Login Reward & Streak Bonus */}
+          {/* 3. Daily Login Reward & Streak Bonus */}
           {data.dailyReward && <DailyRewardCard dailyReward={data.dailyReward} />}
 
           {/* 2. Today's Target Progress & Overview Stats Grid */}

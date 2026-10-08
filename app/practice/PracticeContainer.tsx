@@ -232,6 +232,14 @@ export function PracticeContainer({
     }
   };
 
+  // Auto-resume from URL query parameter (e.g. /practice?resume=sessionId)
+  useEffect(() => {
+    const resumeParam = searchParams.get('resume');
+    if (resumeParam && screenState === 'CONFIG' && !resumingSessionId && !sessionId) {
+      handleResumeSessionById(resumeParam);
+    }
+  }, [searchParams]);
+
   // Discard / Abandon a specific active session
   const handleAbandonSession = async (sessId: string) => {
     setAbandoningSessionId(sessId);
