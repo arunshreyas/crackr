@@ -11,6 +11,7 @@ import { Consistency } from '@/components/dashboard/Consistency';
 import { ProgressCharts } from '@/components/dashboard/ProgressCharts';
 import { SubjectPerformance } from '@/components/dashboard/SubjectPerformance';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
+import { DailyRewardCard } from '@/components/dashboard/DailyRewardCard';
 
 interface DashboardClientProps {
   data: DashboardData;
@@ -54,6 +55,9 @@ export function DashboardClient({ data }: DashboardClientProps) {
               <span aria-hidden="true">→</span>
             </Link>
           </section>
+
+          {/* 1.5 Daily Login Reward & Streak Bonus */}
+          {data.dailyReward && <DailyRewardCard dailyReward={data.dailyReward} />}
 
           {/* 2. Today's Target Progress & Overview Stats Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

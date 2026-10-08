@@ -186,10 +186,9 @@ export async function getProfileData(userId: string): Promise<ProfileData | null
 
   const totalAnsweredCount = allAnswers.length;
   const totalCorrectCount = allAnswers.filter((a) => a.isCorrect).length;
-  const answerXp = totalCorrectCount * 20 + (totalAnsweredCount - totalCorrectCount) * 5;
   const transactionXp = xpTxAgg._sum.amount || 0;
 
-  const authoritativeXp = Math.max(profile.xp, answerXp, transactionXp);
+  const authoritativeXp = Math.max(profile.xp, transactionXp, totalCorrectCount * 20);
   const authoritativeAnswered = Math.max(profile.questionsAnswered, totalAnsweredCount);
   const authoritativeCorrect = Math.max(profile.questionsCorrect, totalCorrectCount);
   const { level: authoritativeLevel } = calculateLevel(authoritativeXp);

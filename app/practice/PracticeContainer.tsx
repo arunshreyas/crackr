@@ -202,7 +202,7 @@ export function PracticeContainer({
       const currQ = qList[targetIdx];
       if (currQ && answeredMap[currQ.id]) {
         const existing = answeredMap[currQ.id];
-        const earned = existing.isCorrect ? 20 : 5;
+        const earned = existing.isCorrect ? 20 : 0;
         setSelectedOption(existing.selectedOption);
         setAnswerResult({
           isCorrect: existing.isCorrect,
@@ -331,7 +331,7 @@ export function PracticeContainer({
       const existing = nextQ ? sessionAnsweredMap[nextQ.id] : null;
 
       if (existing) {
-        const earned = existing.isCorrect ? 20 : 5;
+        const earned = existing.isCorrect ? 20 : 0;
         setSelectedOption(existing.selectedOption);
         setAnswerResult({
           isCorrect: existing.isCorrect,
@@ -392,7 +392,7 @@ export function PracticeContainer({
     const existing = targetQ ? sessionAnsweredMap[targetQ.id] : null;
 
     if (existing) {
-      const earned = existing.isCorrect ? 20 : 5;
+      const earned = existing.isCorrect ? 20 : 0;
       setSelectedOption(existing.selectedOption);
       setAnswerResult({
         isCorrect: existing.isCorrect,
@@ -958,8 +958,19 @@ export function PracticeContainer({
                   )}
                 </div>
 
-                <span className="font-mono text-[11px] text-zinc-400 bg-white/[0.04] px-2 py-0.5 rounded">
-                  +{answerResult.xpEarned} XP
+                <span
+                  className={`font-mono text-[11px] px-2 py-0.5 rounded ${
+                    answerResult.xpEarned > 0
+                      ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20'
+                      : answerResult.xpEarned < 0
+                      ? 'text-red-400 bg-red-500/10 border border-red-500/20 font-semibold'
+                      : 'text-zinc-400 bg-white/[0.04]'
+                  }`}
+                >
+                  {answerResult.xpEarned > 0
+                    ? `+${answerResult.xpEarned}`
+                    : answerResult.xpEarned}{' '}
+                  XP
                 </span>
               </div>
 
@@ -1062,7 +1073,9 @@ export function PracticeContainer({
               {resultsSummary.accuracy}% accuracy
             </span>
             <span>·</span>
-            <span className="text-[#FF9D50]">+{resultsSummary.xpEarned} XP</span>
+            <span className={resultsSummary.xpEarned >= 0 ? 'text-[#FF9D50]' : 'text-red-400'}>
+              {resultsSummary.xpEarned >= 0 ? `+${resultsSummary.xpEarned}` : resultsSummary.xpEarned} XP
+            </span>
             <span>·</span>
             <span>{durationDisplay}</span>
           </div>

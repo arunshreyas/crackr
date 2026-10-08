@@ -2,8 +2,10 @@ import 'server-only';
 import { prisma } from '@/lib/server/db';
 import { QuestionSubject } from '@prisma/client';
 import { calculateLevel, calculateRank } from '@/lib/server/gamification/config';
+import { checkAndClaimDailyLoginReward, DailyLoginStatus } from '@/lib/server/gamification/service';
 
 export interface DashboardData {
+  dailyReward: DailyLoginStatus;
   profile: {
     name: string;
     username: string;
@@ -129,7 +131,10 @@ export async function getDashboardData(clerkUserId: string): Promise<DashboardDa
 
   if (!profile) return null;
 
-  // Lifetime answer stats check to ensure UserProfile is 100% in sync without losing any XP
+  // 1. Authoritatively check and grant daily login reward for today
+  const dailyReward = await checkAndClaimDailyLoginReward(profile.id);
+
+  // 2. Lifetime answer stats check to ensure UserProfile is 100% in sync without losing any XP
   const [allAnswers, xpTxAgg] = await Promise.all([
     prisma.quizAnswer.findMany({
       where: { userId: profile.id },
@@ -143,10 +148,9 @@ export async function getDashboardData(clerkUserId: string): Promise<DashboardDa
 
   const totalAnsweredCount = allAnswers.length;
   const totalCorrectCount = allAnswers.filter((a) => a.isCorrect).length;
-  const answerXp = totalCorrectCount * 20 + (totalAnsweredCount - totalCorrectCount) * 5;
   const transactionXp = xpTxAgg._sum.amount || 0;
 
-  const authoritativeXp = Math.max(profile.xp, answerXp, transactionXp);
+  const authoritativeXp = Math.max(profile.xp, dailyReward.totalXp, transactionXp, totalCorrectCount * 20);
   const authoritativeAnswered = Math.max(profile.questionsAnswered, totalAnsweredCount);
   const authoritativeCorrect = Math.max(profile.questionsCorrect, totalCorrectCount);
   const { level: authoritativeLevel } = calculateLevel(authoritativeXp);
@@ -456,6 +460,7 @@ export async function getDashboardData(clerkUserId: string): Promise<DashboardDa
   const rankInfo = calculateRank(profile.xp || 0);
 
   return {
+    dailyReward,
     profile: {
       name: profile.name,
       username: profile.username,

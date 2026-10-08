@@ -9,7 +9,7 @@ import {
   checkAndUnlockAchievements,
   UnlockedAchievementInfo,
 } from '@/lib/server/gamification/service';
-import { XP_CONFIG, calculateLevel } from '@/lib/server/gamification/config';
+import { XP_CONFIG, calculateLevel, calculateAnswerXp } from '@/lib/server/gamification/config';
 
 export interface StartPracticeResult {
   sessionId: string;
@@ -426,8 +426,7 @@ export async function submitPracticeAnswer(params: {
   // Idempotent return if this question was already answered
   if (existingAnswer && existingAnswer.question) {
     const isCorrect = existingAnswer.isCorrect;
-    const xpAmount =
-      XP_CONFIG.QUESTION_ANSWERED + (isCorrect ? XP_CONFIG.QUESTION_CORRECT_BONUS : 0);
+    const xpAmount = calculateAnswerXp(isCorrect, profile.level);
     return {
       isCorrect,
       correctOption: existingAnswer.question.correctOption,
@@ -449,9 +448,8 @@ export async function submitPracticeAnswer(params: {
 
   const isCorrect = question.correctOption === selectedOption;
 
-  // Calculate XP
-  const xpAmount =
-    XP_CONFIG.QUESTION_ANSWERED + (isCorrect ? XP_CONFIG.QUESTION_CORRECT_BONUS : 0);
+  // Calculate level-scaled XP
+  const xpAmount = calculateAnswerXp(isCorrect, profile.level);
 
   const now = new Date();
 
@@ -476,7 +474,8 @@ export async function submitPracticeAnswer(params: {
       },
     });
 
-    const totalXp = currentProfile.xp + xpAmount;
+    // Floor total XP at 0 so negative XP never produces a negative total balance
+    const totalXp = Math.max(0, currentProfile.xp + xpAmount);
     const { level: calculatedLevel } = calculateLevel(totalXp);
     const didLevelUp = calculatedLevel > currentProfile.level;
 
@@ -506,6 +505,14 @@ export async function submitPracticeAnswer(params: {
 
     longestStreak = Math.max(longestStreak, currentStreak);
 
+    const txReason = isCorrect
+      ? 'QUESTION_CORRECT'
+      : xpAmount > 0
+        ? 'QUESTION_WRONG_ATTEMPT'
+        : xpAmount === 0
+          ? 'QUESTION_WRONG'
+          : 'QUESTION_WRONG_PENALTY';
+
     // Parallelize writes inside transaction connection
     await Promise.all([
       tx.quizAnswer.create({
@@ -522,7 +529,7 @@ export async function submitPracticeAnswer(params: {
         data: {
           userId: profile.id,
           amount: xpAmount,
-          reason: isCorrect ? 'QUESTION_CORRECT' : 'QUESTION_ATTEMPT',
+          reason: txReason,
           sessionId,
         },
       }),
@@ -612,8 +619,13 @@ export async function completePracticeSession(params: {
   const correctCount = answers.filter((a) => a.isCorrect).length;
   const accuracy = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
 
-  let sessionXpEarned = answers.reduce((acc, a) => {
-    return acc + XP_CONFIG.QUESTION_ANSWERED + (a.isCorrect ? XP_CONFIG.QUESTION_CORRECT_BONUS : 0);
+  const sessionTxs = await prisma.xPTransaction.aggregate({
+    where: { sessionId: session.id },
+    _sum: { amount: true },
+  });
+
+  let sessionXpEarned = sessionTxs._sum.amount ?? answers.reduce((acc, a) => {
+    return acc + calculateAnswerXp(a.isCorrect, profile.level);
   }, 0);
 
   // Bonus XP for perfect sessions (min 5 questions)

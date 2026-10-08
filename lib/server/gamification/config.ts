@@ -1,11 +1,60 @@
 import 'server-only';
 
 export const XP_CONFIG = {
-  QUESTION_ANSWERED: 5,
-  QUESTION_CORRECT_BONUS: 15,
+  QUESTION_ANSWERED: 0,
+  QUESTION_CORRECT_BONUS: 20,
+  BASE_CORRECT_XP: 20,
   PERFECT_SESSION_BONUS: 40,
   DAILY_GOAL_BONUS: 50,
 } as const;
+
+export interface DailyLoginRewardTier {
+  day: number;
+  xp: number;
+  title: string;
+}
+
+export const DAILY_LOGIN_REWARDS: DailyLoginRewardTier[] = [
+  { day: 1, xp: 20, title: 'Day 1 Starter' },
+  { day: 2, xp: 25, title: 'Day 2 Momentum' },
+  { day: 3, xp: 30, title: 'Day 3 Flame' },
+  { day: 4, xp: 35, title: 'Day 4 Discipline' },
+  { day: 5, xp: 40, title: 'Day 5 Power' },
+  { day: 6, xp: 50, title: 'Day 6 Dedication' },
+  { day: 7, xp: 75, title: 'Day 7 Champion' },
+];
+
+/**
+ * Calculates the XP earned or penalized for answering a question.
+ * - Correct answer: +20 XP.
+ * - Wrong answer: Scaled by user's current level:
+ *   - Level 1: +1 XP (Novice minimum participation token for effort)
+ *   - Level 2-3: 0 XP (Learner: no reward for wrong answers)
+ *   - Level 4-6: -2 XP (Challenger/Scholar: negative penalty for wrong guesses)
+ *   - Level 7-10: -5 XP (Expert/Master: -5 XP negative penalty)
+ *   - Level 11+: -10 XP (Cracker/Grandmaster: -10 XP competitive JEE penalty)
+ */
+export function calculateAnswerXp(isCorrect: boolean, userLevel: number = 1): number {
+  if (isCorrect) {
+    return XP_CONFIG.BASE_CORRECT_XP;
+  }
+
+  // Level-scaled penalty for incorrect answers
+  if (userLevel <= 1) {
+    return 1; // Novice: minimal participation token (0.5 - 1 XP)
+  }
+  if (userLevel <= 3) {
+    return 0; // Learner: 0 XP for wrong answers
+  }
+  if (userLevel <= 6) {
+    return -2; // Challenger / Scholar: -2 XP
+  }
+  if (userLevel <= 10) {
+    return -5; // Expert / Master: -5 XP
+  }
+  return -10; // Level 11+ Cracker / Grandmaster: -10 XP
+}
+
 
 export interface RankTier {
   name: string;

@@ -2,6 +2,7 @@ import 'server-only';
 import { prisma } from '@/lib/server/db';
 import {
   XP_CONFIG,
+  DAILY_LOGIN_REWARDS,
   V1_ACHIEVEMENTS,
   calculateLevel,
   calculateRank,
@@ -296,3 +297,117 @@ export async function checkAndUnlockAchievements(
 
   return newlyUnlocked;
 }
+
+export interface DailyLoginStatus {
+  claimedToday: boolean;
+  newlyClaimed: boolean;
+  rewardXp: number;
+  streakDay: number;
+  totalXp: number;
+  level: number;
+  rewardsTrack: Array<{
+    day: number;
+    xp: number;
+    title: string;
+    isClaimed: boolean;
+    isCurrent: boolean;
+  }>;
+}
+
+/**
+ * Checks and authoritatively claims the user's daily login reward.
+ * Idempotent: Can be called whenever the user loads their dashboard/app.
+ */
+export async function checkAndClaimDailyLoginReward(userId: string): Promise<DailyLoginStatus> {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  startOfToday.setHours(0, 0, 0, 0);
+
+  // 1. Fetch user profile
+  const user = await prisma.userProfile.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      xp: true,
+      level: true,
+      currentStreak: true,
+      longestStreak: true,
+      lastPracticeAt: true,
+    },
+  });
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // 2. Check if already claimed today
+  const todayTx = await prisma.xPTransaction.findFirst({
+    where: {
+      userId,
+      reason: { startsWith: 'DAILY_LOGIN' },
+      createdAt: { gte: startOfToday },
+    },
+  });
+
+  // Calculate user streak day (1 to 7 cycle)
+  const currentStreak = Math.max(1, user.currentStreak || 1);
+  const streakDay = ((currentStreak - 1) % 7) + 1;
+  const rewardConfig = DAILY_LOGIN_REWARDS.find((r) => r.day === streakDay) || DAILY_LOGIN_REWARDS[0];
+
+  if (todayTx) {
+    return {
+      claimedToday: true,
+      newlyClaimed: false,
+      rewardXp: todayTx.amount,
+      streakDay,
+      totalXp: user.xp,
+      level: user.level,
+      rewardsTrack: DAILY_LOGIN_REWARDS.map((r) => ({
+        day: r.day,
+        xp: r.xp,
+        title: r.title,
+        isClaimed: r.day <= streakDay,
+        isCurrent: r.day === streakDay,
+      })),
+    };
+  }
+
+  // 3. Atomically grant today's daily login reward
+  const rewardXp = rewardConfig.xp;
+  const newTotalXp = user.xp + rewardXp;
+  const { level: newLevel } = calculateLevel(newTotalXp);
+
+  await prisma.$transaction([
+    prisma.xPTransaction.create({
+      data: {
+        userId,
+        amount: rewardXp,
+        reason: `DAILY_LOGIN_DAY_${streakDay}`,
+      },
+    }),
+    prisma.userProfile.update({
+      where: { id: userId },
+      data: {
+        xp: newTotalXp,
+        level: newLevel,
+      },
+    }),
+  ]);
+
+  return {
+    claimedToday: true,
+    newlyClaimed: true,
+    rewardXp,
+    streakDay,
+    totalXp: newTotalXp,
+    level: newLevel,
+    rewardsTrack: DAILY_LOGIN_REWARDS.map((r) => ({
+      day: r.day,
+      xp: r.xp,
+      title: r.title,
+      isClaimed: r.day <= streakDay,
+      isCurrent: r.day === streakDay,
+    })),
+  };
+}
+
