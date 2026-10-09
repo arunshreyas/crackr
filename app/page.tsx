@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import Image from "next/image";
 import { useAuth, UserButton } from "@clerk/nextjs";
 
 const PlasmaWave = dynamic(
@@ -619,44 +618,8 @@ export default function Home() {
           </div>
         </section>
 
-        {/* SUPPORT CRACKRR SECTION */}
-        <section id="support" className="py-24 px-4 sm:px-6 lg:px-8 border-t border-white/[0.06]">
-          <div className="max-w-md mx-auto text-center space-y-6">
-            <div className="text-[11px] font-semibold text-[#ff9e4f] uppercase tracking-widest">
-              Support Crackrr
-            </div>
-
-            <div className="space-y-3">
-              <h2 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">
-                Help keep Crackrr running.
-              </h2>
-              <p className="text-sm text-zinc-400 leading-relaxed font-normal">
-                Crackrr is a small independent project built to make JEE practice a little better. If it&apos;s useful to you, you can help me keep the lights on.
-              </p>
-            </div>
-
-            {/* Clean, Non-Glowing QR Container */}
-            <div className="pt-2 flex flex-col items-center space-y-3">
-              <div className="w-40 h-40 sm:w-44 sm:h-44 p-2 rounded-xl bg-white/[0.02] border border-white/[0.1] flex items-center justify-center">
-                <Image
-                  src="/coffee-qr.png"
-                  alt="Scan to support Crackrr"
-                  width={160}
-                  height={160}
-                  className="w-full h-full object-contain rounded-lg"
-                  priority
-                />
-              </div>
-
-              <span className="text-[11px] text-zinc-400 font-normal">
-                Scan with any UPI app
-              </span>
-            </div>
-          </div>
-        </section>
-
         {/* FINAL CTA SECTION */}
-        <section id="get-started" className="py-24 px-4 sm:px-6 lg:px-8 border-t border-white/[0.06] text-center">
+        <section id="get-started" className="py-24 sm:py-28 px-4 sm:px-6 lg:px-8 border-t border-white/[0.06] text-center">
           <div className="max-w-xl mx-auto space-y-6">
             <h2 className="text-4xl sm:text-5xl font-medium text-white tracking-tight">
               Ready to start practicing?
