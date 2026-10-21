@@ -104,8 +104,14 @@ export function PrimaryActionHero({
     );
   }
 
-  // State B: No Active Session -> Primary "Start New Practice Session"
+  // State B: No Active Session -> Primary "Start New Practice Session" or "Drill Weak Concept"
   const recSubjectName = formatSubjectName(recommendation.targetSubject);
+  const practiceUrl =
+    recommendation.isWeakConceptDrill && recommendation.targetTopic
+      ? `/practice?subject=${recommendation.targetSubject}&chapter=${encodeURIComponent(
+          recommendation.targetChapter || ''
+        )}&topic=${encodeURIComponent(recommendation.targetTopic)}`
+      : `/practice?subject=${recommendation.targetSubject}`;
 
   return (
     <section className="relative overflow-hidden rounded-2xl border border-white/[0.12] bg-gradient-to-br from-[#0C0E14] via-[#0C0E14] to-white/[0.02] p-5 sm:p-7 shadow-sm">
@@ -116,10 +122,17 @@ export function PrimaryActionHero({
         <div className="space-y-3 max-w-xl">
           {/* Badge */}
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              Ready to Practice
-            </span>
+            {recommendation.isWeakConceptDrill ? (
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/30">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                Targeted Weak Concept Drill
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                Ready to Practice
+              </span>
+            )}
             <span className="text-xs text-zinc-400">
               {today.remaining > 0
                 ? `${today.remaining} Qs left to daily goal`
@@ -130,7 +143,9 @@ export function PrimaryActionHero({
           {/* Headline */}
           <div>
             <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-              Start New Practice Session
+              {recommendation.isWeakConceptDrill && recommendation.targetTopic
+                ? `Drill Weak Concept: ${recommendation.targetTopic}`
+                : 'Start New Practice Session'}
             </h2>
             <p className="text-sm text-zinc-300 mt-1 leading-relaxed">
               Recommended next step:{' '}
@@ -167,11 +182,13 @@ export function PrimaryActionHero({
         {/* Primary CTA Button */}
         <div className="shrink-0">
           <Link
-            href={`/practice?subject=${recommendation.targetSubject}`}
+            href={practiceUrl}
             className="inline-flex items-center justify-center gap-2.5 w-full sm:w-auto px-7 py-3.5 rounded-xl bg-[#FF9D50] hover:bg-[#FFAA66] text-[#080A0E] text-sm font-bold tracking-wide transition-all shadow-md active:scale-[0.99]"
           >
             <Play className="w-4 h-4 fill-current" />
-            <span>Start Practice Session</span>
+            <span>
+              {recommendation.isWeakConceptDrill ? 'Drill Weak Concept' : 'Start Practice Session'}
+            </span>
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>

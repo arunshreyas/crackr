@@ -73,7 +73,13 @@ export function RecentActivity({ sessions, recommendation }: RecentActivityProps
             </span>
           </div>
           <Link
-            href="/practice"
+            href={
+              recommendation.targetTopic
+                ? `/practice?subject=${recommendation.targetSubject}&chapter=${encodeURIComponent(
+                    recommendation.targetChapter || ''
+                  )}&topic=${encodeURIComponent(recommendation.targetTopic)}`
+                : `/practice?subject=${recommendation.targetSubject}`
+            }
             className="px-4 py-2 rounded-xl bg-[#FF9D50] hover:bg-[#FFAA66] text-[#080A0E] text-xs font-semibold tracking-wide transition-all shadow-sm active:scale-[0.99]"
           >
             Practice →

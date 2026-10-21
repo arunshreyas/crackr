@@ -113,6 +113,8 @@ export interface DashboardData {
     actionText: string;
     targetSubject: QuestionSubject;
     targetChapter: string | null;
+    targetTopic?: string | null;
+    isWeakConceptDrill?: boolean;
   };
 }
 
@@ -488,13 +490,23 @@ export async function getDashboardData(clerkUserId: string): Promise<DashboardDa
     createdAt: s.createdAt.toISOString(),
   }));
 
-  // Recommended practice target (strictly dynamic from user history)
+  // Recommended practice target (strictly dynamic from user history & weak concept diagnostics)
   const mostRecentSession = recentSessionsData[0];
   let actionText = 'Start practicing';
   let targetSubject: QuestionSubject = 'PHYSICS';
   let targetChapter: string | null = null;
+  let targetTopic: string | null = null;
+  let isWeakConceptDrill = false;
 
-  if (mostRecentSession) {
+  const topWeak = conceptDiagnostics.topWeakConcepts[0];
+  if (topWeak && (topWeak.weaknessLevel === 'CRITICAL_WEAKNESS' || topWeak.weaknessLevel === 'NEEDS_ATTENTION')) {
+    targetSubject = topWeak.subject;
+    targetChapter = topWeak.chapter;
+    targetTopic = topWeak.topic;
+    isWeakConceptDrill = true;
+    const sName = topWeak.subject.charAt(0) + topWeak.subject.slice(1).toLowerCase();
+    actionText = `Drill Weak Concept: ${topWeak.topic} (${sName})`;
+  } else if (mostRecentSession) {
     targetSubject = mostRecentSession.subject || 'PHYSICS';
     targetChapter = mostRecentSession.chapter || null;
     if (mostRecentSession.subject) {
@@ -566,6 +578,8 @@ export async function getDashboardData(clerkUserId: string): Promise<DashboardDa
       actionText,
       targetSubject,
       targetChapter,
+      targetTopic,
+      isWeakConceptDrill,
     },
   };
 }

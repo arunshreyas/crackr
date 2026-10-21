@@ -39,6 +39,7 @@ import {
   Trash2,
   Bookmark,
   Calendar,
+  Target,
 } from 'lucide-react';
 import { MathRenderer } from '@/components/ui/MathRenderer';
 
@@ -103,6 +104,7 @@ export function PracticeContainer({
 
   const urlChapter = searchParams.get('chapter');
   const initialChapter = urlChapter || 'ALL';
+  const urlTopic = searchParams.get('topic');
 
   // Active persistent sessions list
   const [activeSessions, setActiveSessions] = useState<ActiveSessionSummaryItem[]>(initialActiveSessions);
@@ -113,6 +115,7 @@ export function PracticeContainer({
   // Config parameters
   const [selectedSubject, setSelectedSubject] = useState<QuestionSubject>(initialSubject);
   const [selectedChapter, setSelectedChapter] = useState<string>(initialChapter);
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(urlTopic || null);
   const initialDifficulty = (() => {
     if (!preferredDifficulty) return 'ALL';
     const u = preferredDifficulty.trim().toUpperCase();
@@ -178,6 +181,7 @@ export function PracticeContainer({
   const handleSubjectChange = (subj: QuestionSubject) => {
     setSelectedSubject(subj);
     setSelectedChapter('ALL');
+    setSelectedTopic(null);
   };
 
   // Resume a specific active session by ID
@@ -261,16 +265,22 @@ export function PracticeContainer({
   };
 
   // Start New Session Handler
-  const handleStartSession = async (customSubject?: QuestionSubject, customChapter?: string) => {
+  const handleStartSession = async (
+    customSubject?: QuestionSubject,
+    customChapter?: string,
+    customTopic?: string | null
+  ) => {
     setLoading(true);
     setError(null);
 
     const subj = customSubject || selectedSubject;
     const chap = customChapter !== undefined ? customChapter : selectedChapter;
+    const topic = customTopic !== undefined ? customTopic : selectedTopic;
 
     const res = await startPracticeAction({
       subject: subj,
       chapter: chap,
+      topic: topic || undefined,
       difficulty: selectedDifficulty,
       questionCount,
     });
@@ -632,6 +642,37 @@ export function PracticeContainer({
 
         {/* Configuration Form for New Session */}
         <div className="space-y-6 pt-2">
+          {/* Targeted Weak Concept Drill Banner */}
+          {selectedTopic && (
+            <div className="p-4 rounded-xl border border-red-500/30 bg-red-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-red-500/20 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">
+                  <Target className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-red-400 px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/30">
+                      Targeted Weak Concept Drill
+                    </span>
+                  </div>
+                  <p className="text-xs text-white font-medium mt-1">
+                    Focusing practice on <span className="font-semibold text-[#FF9D50]">{selectedTopic}</span>
+                    {selectedChapter !== 'ALL' && (
+                      <span className="text-zinc-400 font-normal"> · {selectedChapter}</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedTopic(null)}
+                className="text-xs text-zinc-400 hover:text-white px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] transition-colors self-start sm:self-auto cursor-pointer"
+              >
+                Clear Topic Filter
+              </button>
+            </div>
+          )}
+
           {activeSessions.length > 0 && (
             <div className="flex items-center gap-3">
               <div className="h-px flex-1 bg-white/[0.06]" />
@@ -739,6 +780,7 @@ export function PracticeContainer({
           <div className="pt-4 border-t border-white/[0.06] flex items-center justify-between">
             <span className="text-xs text-zinc-500">
               {questionCount} questions · {selectedSubject.charAt(0) + selectedSubject.slice(1).toLowerCase()}
+              {selectedTopic && <span className="text-[#FF9D50]"> · {selectedTopic}</span>}
             </span>
 
             <button
@@ -754,7 +796,7 @@ export function PracticeContainer({
                 </>
               ) : (
                 <>
-                  <span>Start Practice</span>
+                  <span>{selectedTopic ? `Drill Concept (${questionCount} Qs)` : 'Start Practice'}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </>
               )}
