@@ -15,7 +15,6 @@ Module._load = function (request, parent, isMain) {
 async function runStage3And4Tests() {
   const { prisma } = await import('../lib/server/db');
   const { analyzeConceptPerformance, getUserConceptDiagnostics } = await import('../lib/server/concepts/analysis');
-  const { ConceptAttemptGroup } = await import('../lib/server/concepts/attempts');
 
   console.log('===========================================================');
   console.log('  TESTING STAGE 3 (PERFORMANCE) & STAGE 4 (WEAKNESS)       ');
