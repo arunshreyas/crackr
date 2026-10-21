@@ -3,9 +3,11 @@ import { prisma } from '@/lib/server/db';
 import { QuestionSubject } from '@prisma/client';
 import { calculateLevel, calculateRank } from '@/lib/server/gamification/config';
 import { checkAndClaimDailyLoginReward, DailyLoginStatus } from '@/lib/server/gamification/service';
+import { getUserConceptDiagnostics, UserConceptDiagnosticsSummary } from '@/lib/server/concepts/analysis';
 
 export interface DashboardData {
   dailyReward: DailyLoginStatus;
+  conceptDiagnostics: UserConceptDiagnosticsSummary;
   activeSession: {
     sessionId: string;
     subject: QuestionSubject | null;
@@ -217,8 +219,8 @@ export async function getDashboardData(clerkUserId: string): Promise<DashboardDa
     orderBy: { createdAt: 'asc' },
   });
 
-  // 2. Fetch user's active persistent sessions and recent completed sessions
-  const [activeSessionsData, recentSessionsData] = await Promise.all([
+  // 2. Fetch user's active persistent sessions, recent completed sessions, and concept diagnostics
+  const [activeSessionsData, recentSessionsData, conceptDiagnostics] = await Promise.all([
     prisma.quizSession.findMany({
       where: {
         userId: profile.id,
@@ -237,6 +239,7 @@ export async function getDashboardData(clerkUserId: string): Promise<DashboardDa
       orderBy: { createdAt: 'desc' },
       take: 5,
     }),
+    getUserConceptDiagnostics(profile.id),
   ]);
 
   const validActiveSessions = activeSessionsData.filter((s) => s.questionIds && s.questionIds.length > 0);
@@ -507,6 +510,7 @@ export async function getDashboardData(clerkUserId: string): Promise<DashboardDa
 
   return {
     dailyReward,
+    conceptDiagnostics,
     activeSession,
     activeSessionsCount: validActiveSessions.length,
     profile: {
