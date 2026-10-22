@@ -82,12 +82,41 @@ export async function getProgressData(userId: string): Promise<ProgressData | nu
 
   if (!profile) return null;
 
-  // 1. Fetch total counts and answer stats
-  const answerStats = await prisma.quizAnswer.groupBy({
-    by: ['isCorrect'],
-    where: { userId },
-    _count: { id: true },
-  });
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setHours(0, 0, 0, 0);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+
+  // These reports are independent; fetch them together to avoid serial DB waits.
+  const [answerStats, sessionAggregates, questionCatalog, userAnswersWithQuestions, pastAnswers] =
+    await Promise.all([
+      prisma.quizAnswer.groupBy({
+        by: ['isCorrect'],
+        where: { userId },
+        _count: { id: true },
+      }),
+      prisma.quizSession.aggregate({
+        where: { userId, completedAt: { not: null } },
+        _sum: { durationSeconds: true },
+        _count: { id: true },
+      }),
+      prisma.question.groupBy({
+        by: ['subject', 'chapter'],
+        where: { type: 'MCQ' },
+        _count: { id: true },
+        orderBy: { chapter: 'asc' },
+      }),
+      prisma.quizAnswer.findMany({
+        where: { userId },
+        select: {
+          isCorrect: true,
+          question: { select: { subject: true, chapter: true } },
+        },
+      }),
+      prisma.quizAnswer.findMany({
+        where: { userId, createdAt: { gte: thirtyDaysAgo } },
+        select: { isCorrect: true, createdAt: true },
+      }),
+    ]);
 
   let totalCorrect = 0;
   let totalIncorrect = 0;
@@ -98,39 +127,10 @@ export async function getProgressData(userId: string): Promise<ProgressData | nu
   const totalSolved = totalCorrect + totalIncorrect;
   const overallAccuracy = totalSolved > 0 ? Math.round((totalCorrect / totalSolved) * 100) : null;
 
-  // 2. Total practice time and duration
-  const sessionAggregates = await prisma.quizSession.aggregate({
-    where: { userId, completedAt: { not: null } },
-    _sum: { durationSeconds: true },
-    _count: { id: true },
-  });
-
   const totalPracticeSeconds = sessionAggregates._sum.durationSeconds || 0;
   const totalPracticeMinutes = Math.round(totalPracticeSeconds / 60);
   const totalSessions = sessionAggregates._count.id;
   const avgTimePerQuestionSeconds = totalSolved > 0 ? Math.round(totalPracticeSeconds / totalSolved) : 0;
-
-  // 3. Chapter breakdown from question bank
-  const questionCatalog = await prisma.question.groupBy({
-    by: ['subject', 'chapter'],
-    where: { type: 'MCQ' },
-    _count: { id: true },
-    orderBy: { chapter: 'asc' },
-  });
-
-  // 4. User answers grouped by question to aggregate chapter mastery
-  const userAnswersWithQuestions = await prisma.quizAnswer.findMany({
-    where: { userId },
-    select: {
-      isCorrect: true,
-      question: {
-        select: {
-          subject: true,
-          chapter: true,
-        },
-      },
-    },
-  });
 
   // Map chapter stats
   const userChapterMap: Record<string, { attempted: number; correct: number }> = {};
@@ -210,22 +210,7 @@ export async function getProgressData(userId: string): Promise<ProgressData | nu
     };
   });
 
-  // 5. Past 30-Day Trend
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setHours(0, 0, 0, 0);
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
-
-  const pastAnswers = await prisma.quizAnswer.findMany({
-    where: {
-      userId,
-      createdAt: { gte: thirtyDaysAgo },
-    },
-    select: {
-      isCorrect: true,
-      createdAt: true,
-    },
-  });
-
+  // 5. Past 30-Day Trend (loaded with the other independent reports above)
   const dailyMap: Record<string, { solved: number; correct: number }> = {};
   for (let i = 0; i < 30; i++) {
     const d = new Date(thirtyDaysAgo);
