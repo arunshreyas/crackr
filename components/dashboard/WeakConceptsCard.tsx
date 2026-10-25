@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { UserConceptDiagnosticsSummary, AnalyzedConcept } from '@/lib/server/concepts/analysis';
-import { AlertCircle, AlertTriangle, ArrowRight, BookOpen, Clock, Target, Zap, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, AlertTriangle, ArrowRight, BookOpen, Clock, Target, Zap, CheckCircle2, Bookmark } from 'lucide-react';
 import { QuestionSubject } from '@prisma/client';
 
 interface WeakConceptsCardProps {
@@ -67,10 +67,17 @@ export function WeakConceptsCard({ diagnostics }: WeakConceptsCardProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 text-xs font-medium self-start sm:self-auto">
+        <div className="flex items-center gap-2.5 text-xs font-medium self-start sm:self-auto">
           <div className="bg-white/[0.03] border border-white/[0.06] px-3 py-1.5 rounded-xl text-zinc-300">
             Health: <strong className="text-white">{overallHealthScore}%</strong>
           </div>
+          <Link
+            href="/notes?weakOnly=true"
+            className="text-xs text-zinc-300 hover:text-white font-medium flex items-center gap-1.5 transition-colors px-2.5 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06]"
+          >
+            <Bookmark className="w-3.5 h-3.5 text-[#FF9D50]" />
+            <span>Weak Notes</span>
+          </Link>
           <Link
             href="/practice"
             className="text-xs text-[#FF9D50] hover:text-[#FFAA66] font-semibold flex items-center gap-1 transition-colors"
@@ -173,16 +180,23 @@ export function WeakConceptsCard({ diagnostics }: WeakConceptsCardProps) {
                   </p>
                 </div>
 
-                {/* Direct Action Link */}
-                <div className="pt-2">
+                {/* Direct Action Links */}
+                <div className="pt-2 flex items-center gap-2">
                   <Link
                     href={`/practice?subject=${concept.subject}&chapter=${encodeURIComponent(
                       concept.chapter
                     )}&topic=${encodeURIComponent(concept.topic)}`}
-                    className="inline-flex items-center justify-center gap-1.5 w-full py-2 px-3 rounded-lg bg-white/[0.04] hover:bg-[#FF9D50] text-zinc-200 hover:text-[#080A0E] text-xs font-semibold transition-all border border-white/[0.06] hover:border-[#FF9D50]"
+                    className="inline-flex items-center justify-center gap-1.5 flex-1 py-2 px-3 rounded-lg bg-white/[0.04] hover:bg-[#FF9D50] text-zinc-200 hover:text-[#080A0E] text-xs font-semibold transition-all border border-white/[0.06] hover:border-[#FF9D50]"
                   >
                     <span>Drill Weak Concept</span>
                     <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                  <Link
+                    href={`/notes?conceptKey=${encodeURIComponent(concept.conceptKey)}`}
+                    title="View saved notes for this concept"
+                    className="inline-flex items-center justify-center p-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white border border-white/[0.06] transition-colors"
+                  >
+                    <Bookmark className="w-4 h-4 text-[#FF9D50]" />
                   </Link>
                 </div>
               </div>

@@ -253,6 +253,30 @@ function preprocessJeeTablesAndLists(raw: string): string {
 }
 
 /**
+ * Detects consecutive JEE CDN <source media="..." srcset="..."> tags
+ * and wraps them in a compliant, responsive <picture> element with an <img> fallback.
+ */
+function preprocessJeeDiagrams(raw: string): string {
+  if (!raw || !raw.includes('<source')) return raw;
+
+  return raw.replace(/(?:<source\s+media="([^"]+)"\s+srcset="([^"]+)">\s*)+/gi, (match) => {
+    const sourceRegex = /<source\s+media="([^"]+)"\s+srcset="([^"]+)">/gi;
+    const sources: Array<{ media: string; srcset: string; tag: string }> = [];
+    let m;
+    while ((m = sourceRegex.exec(match)) !== null) {
+      sources.push({ media: m[1], srcset: m[2], tag: m[0] });
+    }
+
+    if (sources.length === 0) return match;
+
+    const fallbackSrc = sources[sources.length - 1]?.srcset || sources[0]?.srcset;
+    const sourcesTags = sources.map((s) => s.tag).join('\n');
+
+    return `\n\n<picture class="my-4 block max-w-full overflow-hidden rounded-xl border border-white/[0.08] bg-white/[0.02] p-2 text-center shadow-inner">\n${sourcesTags}\n<img src="${fallbackSrc}" alt="Question Diagram" loading="lazy" class="mx-auto max-h-96 object-contain rounded-lg" />\n</picture>\n\n`;
+  });
+}
+
+/**
  * Splits input into math and non-math segments, parses tables, sub/sup tags, and returns HTML.
  */
 export function formatJeeContent(raw: string): string {
@@ -291,8 +315,9 @@ export function formatJeeContent(raw: string): string {
     return tokenId;
   });
 
-  // 2. Preprocess non-math text for tables & lists
-  const processedText = preprocessJeeTablesAndLists(textWithTokens)
+  // 2. Preprocess non-math text for diagrams, tables & lists
+  const processedDiagrams = preprocessJeeDiagrams(textWithTokens);
+  const processedText = preprocessJeeTablesAndLists(processedDiagrams)
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/&nbsp;/gi, ' ');
 
@@ -305,10 +330,10 @@ export function formatJeeContent(raw: string): string {
     .replace(/<i>(.*?)<\/i>/gi, '<em class="italic">$1</em>')
     .replace(/<em>(.*?)<\/em>/gi, '<em class="italic">$1</em>');
 
-  // Replace line breaks outside tables
-  const parts = formatted.split(/(<div class="my-4 overflow-x-auto[\s\S]*?<\/div>)/g);
+  // Replace line breaks outside tables and picture elements
+  const parts = formatted.split(/(<div class="my-4 overflow-x-auto[\s\S]*?<\/div>|<picture class="my-4 block[\s\S]*?<\/picture>)/g);
   const finalParts = parts.map((part) => {
-    if (part.startsWith('<div class="my-4 overflow-x-auto')) return part;
+    if (part.startsWith('<div class="my-4 overflow-x-auto') || part.startsWith('<picture class="my-4 block')) return part;
     return part.replace(/\n\n/g, '<div class="h-2"></div>').replace(/\n/g, '<br />');
   });
 

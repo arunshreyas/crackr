@@ -11,39 +11,38 @@ datasource db {
   provider = "postgresql"
 }
 
-
-
 model UserProfile {
-  id        String @id @default(cuid())
-  clerkId   String @unique @db.VarChar(255)
+  id      String @id @default(cuid())
+  clerkId String @unique @db.VarChar(255)
 
   // Basic profile
-  email     String @db.VarChar(255)
-  name      String @db.VarChar(255)
-  username  String @unique @db.VarChar(255)
+  email    String @db.VarChar(255)
+  name     String @db.VarChar(255)
+  username String @unique @db.VarChar(255)
 
   // Education
-  school    String @db.VarChar(255)
-  grade     String @db.VarChar(50)
-  stream  Stream
-  onboardingCompleted Boolean @default(false)
-  preferredDifficulty String? @db.VarChar(50)
-  dailyGoal           Int     @default(10)
-  xp             Int @default(0)
-  level          Int @default(1)
-  currentStreak  Int @default(0)
-  longestStreak  Int @default(0)
-  questionsAnswered Int @default(0)
-  questionsCorrect  Int @default(0)
-  lastPracticeAt DateTime?
-  
+  school              String    @db.VarChar(255)
+  grade               String    @db.VarChar(50)
+  stream              Stream
+  onboardingCompleted Boolean   @default(false)
+  preferredDifficulty String?   @db.VarChar(50)
+  dailyGoal           Int       @default(10)
+  xp                  Int       @default(0)
+  level               Int       @default(1)
+  currentStreak       Int       @default(0)
+  longestStreak       Int       @default(0)
+  questionsAnswered   Int       @default(0)
+  questionsCorrect    Int       @default(0)
+  lastPracticeAt      DateTime?
+
   sessions       QuizSession[]
   answers        QuizAnswer[]
   xpTransactions XPTransaction[]
   achievements   UserAchievement[]
+  notes          RevisionNote[]
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum Stream {
@@ -89,9 +88,10 @@ model Question {
   options       QuestionOption[]
   vectorRecord  QuestionVector?
   answers       QuizAnswer[]
+  revisionNotes RevisionNote[]
 
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([subject])
   @@index([chapter])
@@ -150,10 +150,10 @@ model QuizSession {
   lastActivityAt       DateTime         @default(now())
   completedAt          DateTime?
 
-  answers              QuizAnswer[]
+  answers QuizAnswer[]
 
-  createdAt            DateTime         @default(now())
-  updatedAt            DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@index([userId, status])
@@ -173,7 +173,7 @@ model QuizAnswer {
   isCorrect        Boolean
   timeTakenSeconds Int?
 
-  createdAt        DateTime     @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([sessionId, questionId])
   @@index([userId])
@@ -184,13 +184,13 @@ model QuizAnswer {
 }
 
 model XPTransaction {
-  id        String       @id @default(cuid())
+  id        String      @id @default(cuid())
   userId    String
-  user      UserProfile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
   amount    Int
-  reason    String       @db.VarChar(255)
+  reason    String      @db.VarChar(255)
   sessionId String?
-  createdAt DateTime     @default(now())
+  createdAt DateTime    @default(now())
 
   @@index([userId])
   @@index([createdAt])
@@ -220,8 +220,35 @@ model UserAchievement {
 
   @@unique([userId, achievementId])
   @@index([userId])
-  @@index([achievementId])
 }
 
+model RevisionNote {
+  id         String      @id @default(cuid())
+  userId     String
+  user       UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionId String
+  question   Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
- 
+  // Custom user annotations & tags
+  userNote String?  @db.Text
+  tags     String[] @default([])
+
+  // Concept metadata for fast indexed retrieval and weak concept cross-referencing
+  subject    QuestionSubject
+  chapter    String          @db.VarChar(255)
+  topic      String?         @db.VarChar(255)
+  conceptKey String          @db.VarChar(500)
+
+  // Optional high-yield takeaway or formula note
+  keyTakeaway String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, questionId])
+  @@index([userId])
+  @@index([questionId])
+  @@index([userId, subject])
+  @@index([userId, conceptKey])
+  @@index([userId, createdAt])
+}

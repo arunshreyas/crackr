@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   Zap,
+  Bookmark,
 } from 'lucide-react';
 import { HelpModal } from './HelpModal';
 import { ContactModal } from './ContactModal';
@@ -82,6 +83,7 @@ export function AppSidebar() {
   const mainNav = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/practice', label: 'Practice', icon: BookOpen },
+    { href: '/notes', label: 'Smart Notes', icon: Bookmark },
     { href: '/progress', label: 'Progress', icon: TrendingUp },
     { href: '/profile', label: 'Ranks & Levels', icon: Award },
   ];

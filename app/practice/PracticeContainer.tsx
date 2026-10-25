@@ -42,6 +42,8 @@ import {
   Target,
 } from 'lucide-react';
 import { MathRenderer } from '@/components/ui/MathRenderer';
+import { SaveNoteModal } from '@/components/notes/SaveNoteModal';
+import { getSavedQuestionIdsAction } from '@/app/actions/notes';
 
 interface PracticeContainerProps {
   catalog: SubjectCatalog;
@@ -146,6 +148,23 @@ export function PracticeContainer({
   // Results state
   const [resultsSummary, setResultsSummary] = useState<PracticeSessionSummary | null>(null);
   const [expandedQuestions, setExpandedQuestions] = useState<Record<string, boolean>>({});
+
+  // Smart Notes integration state
+  const [savedQuestionIds, setSavedQuestionIds] = useState<Set<string>>(new Set());
+  const [modalQuestion, setModalQuestion] = useState<{
+    id: string;
+    subject: string;
+    chapter: string;
+    topic: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    getSavedQuestionIdsAction().then((res) => {
+      if (res.success && res.data) {
+        setSavedQuestionIds(new Set(res.data));
+      }
+    });
+  }, []);
 
   const currentQuestion = questions[currentIndex];
   const progressPct = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0;
@@ -1008,20 +1027,50 @@ export function PracticeContainer({
                   )}
                 </div>
 
-                <span
-                  className={`font-mono text-[11px] px-2 py-0.5 rounded ${
-                    answerResult.xpEarned > 0
-                      ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20'
-                      : answerResult.xpEarned < 0
-                      ? 'text-red-400 bg-red-500/10 border border-red-500/20 font-semibold'
-                      : 'text-zinc-400 bg-white/[0.04]'
-                  }`}
-                >
-                  {answerResult.xpEarned > 0
-                    ? `+${answerResult.xpEarned}`
-                    : answerResult.xpEarned}{' '}
-                  XP
-                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setModalQuestion({
+                        id: currentQuestion.id,
+                        subject: selectedSubject,
+                        chapter: currentQuestion.chapter,
+                        topic: currentQuestion.topic,
+                      })
+                    }
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors cursor-pointer ${
+                      savedQuestionIds.has(currentQuestion.id)
+                        ? 'bg-[#FF9D50]/15 text-[#FF9D50] border-[#FF9D50]/30 font-semibold'
+                        : 'bg-white/[0.04] text-zinc-300 border-white/[0.08] hover:bg-white/[0.08] hover:text-white'
+                    }`}
+                  >
+                    <Bookmark
+                      className={`w-3.5 h-3.5 ${
+                        savedQuestionIds.has(currentQuestion.id)
+                          ? 'fill-[#FF9D50] text-[#FF9D50]'
+                          : 'text-zinc-400'
+                      }`}
+                    />
+                    <span>
+                      {savedQuestionIds.has(currentQuestion.id) ? 'Saved in Notes' : 'Save as Smart Note'}
+                    </span>
+                  </button>
+
+                  <span
+                    className={`font-mono text-[11px] px-2 py-0.5 rounded ${
+                      answerResult.xpEarned > 0
+                        ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20'
+                        : answerResult.xpEarned < 0
+                        ? 'text-red-400 bg-red-500/10 border border-red-500/20 font-semibold'
+                        : 'text-zinc-400 bg-white/[0.04]'
+                    }`}
+                  >
+                    {answerResult.xpEarned > 0
+                      ? `+${answerResult.xpEarned}`
+                      : answerResult.xpEarned}{' '}
+                    XP
+                  </span>
+                </div>
               </div>
 
               {answerResult.explanation && (
@@ -1083,6 +1132,19 @@ export function PracticeContainer({
             )}
           </div>
         </div>
+
+        {/* Smart Notes Modal */}
+        <SaveNoteModal
+          isOpen={!!modalQuestion}
+          onClose={() => setModalQuestion(null)}
+          questionId={modalQuestion?.id || ''}
+          subjectName={modalQuestion?.subject}
+          chapterName={modalQuestion?.chapter}
+          topicName={modalQuestion?.topic}
+          onSaved={(savedNote) => {
+            setSavedQuestionIds((prev) => new Set([...prev, savedNote.questionId]));
+          }}
+        />
       </div>
     );
   }
@@ -1214,6 +1276,33 @@ export function PracticeContainer({
                     </div>
 
                     <div className="flex items-center gap-3 shrink-0 font-mono text-zinc-400">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setModalQuestion({
+                            id: q.questionId,
+                            subject: resultsSummary.subject,
+                            chapter: q.chapter,
+                            topic: q.topic,
+                          });
+                        }}
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium border transition-colors cursor-pointer ${
+                          savedQuestionIds.has(q.questionId)
+                            ? 'bg-[#FF9D50]/15 text-[#FF9D50] border-[#FF9D50]/30 font-semibold'
+                            : 'bg-white/[0.04] text-zinc-400 border-white/[0.08] hover:bg-white/[0.08] hover:text-white'
+                        }`}
+                      >
+                        <Bookmark
+                          className={`w-3 h-3 ${
+                            savedQuestionIds.has(q.questionId)
+                              ? 'fill-[#FF9D50] text-[#FF9D50]'
+                              : 'text-zinc-400'
+                          }`}
+                        />
+                        <span>{savedQuestionIds.has(q.questionId) ? 'Saved' : 'Save Note'}</span>
+                      </button>
+
                       <span>
                         Selected <strong className="text-white">{q.selectedOption}</strong>
                       </span>
@@ -1281,6 +1370,19 @@ export function PracticeContainer({
             <span>Start Another Session</span>
           </button>
         </div>
+
+        {/* Smart Notes Modal */}
+        <SaveNoteModal
+          isOpen={!!modalQuestion}
+          onClose={() => setModalQuestion(null)}
+          questionId={modalQuestion?.id || ''}
+          subjectName={modalQuestion?.subject}
+          chapterName={modalQuestion?.chapter}
+          topicName={modalQuestion?.topic}
+          onSaved={(savedNote) => {
+            setSavedQuestionIds((prev) => new Set([...prev, savedNote.questionId]));
+          }}
+        />
       </div>
     );
   }
