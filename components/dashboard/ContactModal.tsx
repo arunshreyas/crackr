@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Mail, Copy, Check, ExternalLink, Shield } from 'lucide-react';
+import { X, Mail, Copy, Check, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 
 interface ContactModalProps {

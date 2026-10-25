@@ -5,7 +5,6 @@ import { requireAuthenticatedUser } from '@/lib/server/auth';
 import { getQuestionsForPractice, ClientSafeQuestion } from '@/lib/server/questions/service';
 import {
   awardXp,
-  updateStreakOnPractice,
   checkAndUnlockAchievements,
   UnlockedAchievementInfo,
 } from '@/lib/server/gamification/service';

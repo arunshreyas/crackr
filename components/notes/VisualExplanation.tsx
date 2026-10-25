@@ -10,8 +10,6 @@ import {
   AlertCircle,
   Lightbulb,
   Compass,
-  ArrowRight,
-  Target,
   Hash,
 } from 'lucide-react';
 

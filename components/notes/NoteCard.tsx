@@ -4,13 +4,8 @@ import React from 'react';
 import { EnrichedRevisionNote } from '@/lib/server/notes/service';
 import { MathRenderer } from '@/components/ui/MathRenderer';
 import {
-  Sparkles,
   ArrowRight,
-  Bookmark,
-  Calendar,
-  AlertCircle,
   Lightbulb,
-  Tag,
   Trash2,
 } from 'lucide-react';
 import { QuestionSubject } from '@prisma/client';

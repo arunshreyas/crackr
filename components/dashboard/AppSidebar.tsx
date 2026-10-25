@@ -64,9 +64,11 @@ export function AppSidebar() {
   const [isContactOpen, setIsContactOpen] = useState(false);
 
   // Close drawer automatically on navigation change
-  useEffect(() => {
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
     setIsDrawerOpen(false);
-  }, [pathname]);
+  }
 
   // Lock body scroll when mobile drawer is open
   useEffect(() => {

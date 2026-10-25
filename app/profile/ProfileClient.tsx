@@ -5,24 +5,17 @@ import Link from 'next/link';
 import { AppSidebar } from '@/components/dashboard/AppSidebar';
 import { ProfileData } from '@/lib/server/profile/service';
 import {
-  User,
   Zap,
   Award,
   Flame,
-  Target,
   GraduationCap,
-  Calendar,
   Settings,
-  BookOpen,
   CheckCircle2,
   Lock,
   Trophy,
   Crown,
-  Medal,
   Crosshair,
   Activity,
-  Layers,
-  Sparkles,
 } from 'lucide-react';
 
 interface ProfileClientProps {
@@ -31,6 +24,16 @@ interface ProfileClientProps {
 
 type LeaderboardCategory = 'accuracy' | 'xp' | 'streak' | 'volume';
 type LadderCategory = 'mastery' | 'accuracy' | 'streak' | 'volume';
+
+interface AnyTier {
+  name: string;
+  badge: string;
+  desc?: string;
+  minCorrect?: number;
+  minXp?: number;
+  minStreak?: number;
+  minQuestions?: number;
+}
 
 export function ProfileClient({ data }: ProfileClientProps) {
   const { user, gamification, leaderboards, achievements, stats } = data;
@@ -414,6 +417,7 @@ export function ProfileClient({ data }: ProfileClientProps) {
             {/* Ladder Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
               {currentCategoryRank.allTiers.map((tier, idx) => {
+                const anyTier = tier as AnyTier;
                 const isCurrent = currentCategoryRank.rank === tier.name;
                 const isUnlocked = idx + 1 <= currentCategoryRank.tier;
 
@@ -436,9 +440,9 @@ export function ProfileClient({ data }: ProfileClientProps) {
                       <div className="text-[10px] text-zinc-400 font-medium">
                         Tier {idx + 1}
                       </div>
-                      {'desc' in tier && (
+                      {anyTier.desc && (
                         <p className="text-[10px] text-zinc-400 leading-tight pt-1">
-                          {(tier as any).desc}
+                          {anyTier.desc}
                         </p>
                       )}
                     </div>
@@ -450,13 +454,13 @@ export function ProfileClient({ data }: ProfileClientProps) {
                         <span className="text-[#50D97A] font-medium">Unlocked ✓</span>
                       ) : (
                         <span className="text-zinc-500 font-medium">
-                          {'minCorrect' in tier
-                            ? `${(tier as any).minCorrect} Correct`
-                            : 'minXp' in tier
-                            ? `${(tier as any).minXp.toLocaleString()} XP`
-                            : 'minStreak' in tier
-                            ? `${(tier as any).minStreak}d Streak`
-                            : `${(tier as any).minQuestions} Qs`}
+                          {anyTier.minCorrect !== undefined
+                            ? `${anyTier.minCorrect} Correct`
+                            : anyTier.minXp !== undefined
+                            ? `${anyTier.minXp.toLocaleString()} XP`
+                            : anyTier.minStreak !== undefined
+                            ? `${anyTier.minStreak}d Streak`
+                            : `${anyTier.minQuestions ?? 0} Qs`}
                         </span>
                       )}
                     </div>

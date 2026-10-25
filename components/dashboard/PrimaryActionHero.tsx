@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { DashboardData } from '@/lib/services/dashboard';
-import { Play, RotateCcw, ArrowRight, Sparkles, BookOpen, Layers } from 'lucide-react';
+import { Play, RotateCcw, ArrowRight } from 'lucide-react';
 import { QuestionSubject } from '@prisma/client';
 
 interface PrimaryActionHeroProps {
@@ -105,7 +105,6 @@ export function PrimaryActionHero({
   }
 
   // State B: No Active Session -> Primary "Start New Practice Session" or "Drill Weak Concept"
-  const recSubjectName = formatSubjectName(recommendation.targetSubject);
   const practiceUrl =
     recommendation.isWeakConceptDrill && recommendation.targetTopic
       ? `/practice?subject=${recommendation.targetSubject}&chapter=${encodeURIComponent(

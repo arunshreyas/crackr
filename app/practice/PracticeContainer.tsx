@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { QuestionSubject, OptionLabel } from '@prisma/client';
@@ -19,7 +19,6 @@ import {
 import {
   PracticeSessionSummary,
   AnswerSubmissionResult,
-  ActiveSessionState,
   ActiveSessionAnswerState,
   ActiveSessionSummaryItem,
 } from '@/lib/server/practice/service';
@@ -29,8 +28,6 @@ import {
   CheckCircle2,
   XCircle,
   RotateCcw,
-  Sparkles,
-  Layers,
   ArrowRight,
   Loader2,
   ChevronDown,
@@ -38,7 +35,6 @@ import {
   Play,
   Trash2,
   Bookmark,
-  Calendar,
   Target,
 } from 'lucide-react';
 import { MathRenderer } from '@/components/ui/MathRenderer';
@@ -142,8 +138,8 @@ export function PracticeContainer({
   const [submitting, setSubmitting] = useState(false);
   const [answerResult, setAnswerResult] = useState<AnswerSubmissionResult | null>(null);
   const [sessionAnsweredMap, setSessionAnsweredMap] = useState<Record<string, ActiveSessionAnswerState>>({});
-  const [startTime, setStartTime] = useState<number>(Date.now());
-  const [questionStartTime, setQuestionStartTime] = useState<number>(Date.now());
+  const [startTime, setStartTime] = useState<number>(() => Date.now());
+  const [questionStartTime, setQuestionStartTime] = useState<number>(() => Date.now());
 
   // Results state
   const [resultsSummary, setResultsSummary] = useState<PracticeSessionSummary | null>(null);
@@ -168,32 +164,6 @@ export function PracticeContainer({
 
   const currentQuestion = questions[currentIndex];
   const progressPct = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0;
-
-  // Keyboard shortcuts during active practice
-  useEffect(() => {
-    if (screenState !== 'ACTIVE') return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)) return;
-
-      const key = e.key.toUpperCase();
-      if (['A', 'B', 'C', 'D'].includes(key) && !answerResult && !submitting) {
-        setSelectedOption(key as OptionLabel);
-      } else if (['1', '2', '3', '4'].includes(key) && !answerResult && !submitting) {
-        const mapping: Record<string, OptionLabel> = { '1': 'A', '2': 'B', '3': 'C', '4': 'D' };
-        setSelectedOption(mapping[key]);
-      } else if (e.key === 'Enter') {
-        if (!answerResult && selectedOption && !submitting) {
-          handleSubmitAnswer();
-        } else if (answerResult && !loading) {
-          handleNextQuestion();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [screenState, selectedOption, answerResult, submitting, loading, currentIndex, questions.length]);
 
   const availableChapters = catalog[selectedSubject] || [];
 
@@ -246,8 +216,8 @@ export function PracticeContainer({
       }
 
       const priorDurationMs = (sess.durationSeconds || 0) * 1000;
-      setStartTime(Date.now() - priorDurationMs);
-      setQuestionStartTime(Date.now());
+      setStartTime(() => Date.now() - priorDurationMs);
+      setQuestionStartTime(() => Date.now());
       setExpandedQuestions({});
       setScreenState('ACTIVE');
     } else {
@@ -259,9 +229,11 @@ export function PracticeContainer({
   useEffect(() => {
     const resumeParam = searchParams.get('resume');
     if (resumeParam && screenState === 'CONFIG' && !resumingSessionId && !sessionId) {
-      handleResumeSessionById(resumeParam);
+      void Promise.resolve().then(() => {
+        handleResumeSessionById(resumeParam);
+      });
     }
-  }, [searchParams]);
+  }, [searchParams, screenState, resumingSessionId, sessionId]);
 
   // Discard / Abandon a specific active session
   const handleAbandonSession = async (sessId: string) => {
@@ -313,8 +285,8 @@ export function PracticeContainer({
       setSelectedOption(null);
       setAnswerResult(null);
       setSessionAnsweredMap({});
-      setStartTime(Date.now());
-      setQuestionStartTime(Date.now());
+      setStartTime(() => Date.now());
+      setQuestionStartTime(() => Date.now());
       setExpandedQuestions({});
       setScreenState('ACTIVE');
     } else {
@@ -323,7 +295,7 @@ export function PracticeContainer({
   };
 
   // Submit Answer Handler
-  const handleSubmitAnswer = async () => {
+  const handleSubmitAnswer = useCallback(async () => {
     if (!sessionId || !selectedOption || !currentQuestion || submitting) return;
 
     setSubmitting(true);
@@ -356,10 +328,10 @@ export function PracticeContainer({
     } else {
       setError(res.error || 'Failed to submit answer.');
     }
-  };
+  }, [sessionId, selectedOption, currentQuestion, submitting, questionStartTime]);
 
   // Next Question / Complete Session Handler
-  const handleNextQuestion = async () => {
+  const handleNextQuestion = useCallback(async () => {
     if (currentIndex < questions.length - 1) {
       const nextIdx = currentIndex + 1;
       setCurrentIndex(nextIdx);
@@ -388,7 +360,7 @@ export function PracticeContainer({
         setAnswerResult(null);
       }
 
-      setQuestionStartTime(Date.now());
+      setQuestionStartTime(() => Date.now());
     } else {
       if (!sessionId) return;
       setLoading(true);
@@ -409,7 +381,33 @@ export function PracticeContainer({
         setError(res.error || 'Failed to finalize practice results.');
       }
     }
-  };
+  }, [currentIndex, questions, sessionAnsweredMap, sessionId, startTime]);
+
+  // Keyboard shortcuts during active practice
+  useEffect(() => {
+    if (screenState !== 'ACTIVE') return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)) return;
+
+      const key = e.key.toUpperCase();
+      if (['A', 'B', 'C', 'D'].includes(key) && !answerResult && !submitting) {
+        setSelectedOption(key as OptionLabel);
+      } else if (['1', '2', '3', '4'].includes(key) && !answerResult && !submitting) {
+        const mapping: Record<string, OptionLabel> = { '1': 'A', '2': 'B', '3': 'C', '4': 'D' };
+        setSelectedOption(mapping[key]);
+      } else if (e.key === 'Enter') {
+        if (!answerResult && selectedOption && !submitting) {
+          handleSubmitAnswer();
+        } else if (answerResult && !loading) {
+          handleNextQuestion();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [screenState, selectedOption, answerResult, submitting, loading, handleSubmitAnswer, handleNextQuestion]);
 
   // Exit practice and return to config with updated sessions list
   const handleExitPractice = async () => {
@@ -448,7 +446,7 @@ export function PracticeContainer({
       setSelectedOption(null);
       setAnswerResult(null);
     }
-    setQuestionStartTime(Date.now());
+    setQuestionStartTime(() => Date.now());
   };
 
   const toggleQuestionExpanded = (id: string) => {

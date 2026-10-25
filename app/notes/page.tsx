@@ -16,8 +16,8 @@ export default async function NotesPage() {
   let authCtx;
   try {
     authCtx = await requireAuthenticatedUser();
-  } catch (err: any) {
-    if (err?.message?.includes('ONBOARDING_REQUIRED')) {
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message.includes('ONBOARDING_REQUIRED')) {
       redirect('/onboarding');
     }
     redirect('/sign-in');

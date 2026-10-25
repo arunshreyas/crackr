@@ -2,8 +2,8 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { UserConceptDiagnosticsSummary, AnalyzedConcept } from '@/lib/server/concepts/analysis';
-import { AlertCircle, AlertTriangle, ArrowRight, BookOpen, Clock, Target, Zap, CheckCircle2, Bookmark } from 'lucide-react';
+import { UserConceptDiagnosticsSummary } from '@/lib/server/concepts/analysis';
+import { AlertCircle, ArrowRight, Clock, Target, Zap, CheckCircle2, Bookmark } from 'lucide-react';
 import { QuestionSubject } from '@prisma/client';
 
 interface WeakConceptsCardProps {
@@ -11,7 +11,7 @@ interface WeakConceptsCardProps {
 }
 
 export function WeakConceptsCard({ diagnostics }: WeakConceptsCardProps) {
-  const { topWeakConcepts, criticalCount, needsAttentionCount, overallHealthScore, totalConceptsAttempted } = diagnostics;
+  const { topWeakConcepts, criticalCount, overallHealthScore, totalConceptsAttempted } = diagnostics;
 
   const getSubjectColor = (subj: QuestionSubject) => {
     switch (subj) {

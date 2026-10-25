@@ -10,15 +10,9 @@ import { QuestionSubject } from '@prisma/client';
 import {
   Bookmark,
   Search,
-  Filter,
-  Sparkles,
-  BookOpen,
   AlertCircle,
   Play,
   RotateCcw,
-  Target,
-  Layers,
-  ArrowRight,
 } from 'lucide-react';
 
 interface NotesClientProps {

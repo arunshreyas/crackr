@@ -1,8 +1,18 @@
 import 'server-only';
 import { prisma } from '@/lib/server/db';
-import { QuestionSubject, OptionLabel } from '@prisma/client';
+import { QuestionSubject, OptionLabel, Prisma, QuestionOption } from '@prisma/client';
 import { buildConceptKey } from '@/lib/server/concepts/metadata';
 import { getUserConceptDiagnostics, AnalyzedConcept } from '@/lib/server/concepts/analysis';
+
+type DbNoteWithQuestion = Prisma.RevisionNoteGetPayload<{
+  include: {
+    question: {
+      include: {
+        options: true;
+      };
+    };
+  };
+}>;
 
 export interface SaveNoteInput {
   userId: string;
@@ -148,7 +158,7 @@ export async function getUserRevisionNotes(
     tag?: string;
   }
 ): Promise<EnrichedRevisionNote[]> {
-  const whereClause: any = { userId };
+  const whereClause: Prisma.RevisionNoteWhereInput = { userId };
 
   if (filters?.subject && filters.subject !== 'ALL') {
     whereClause.subject = filters.subject;
@@ -381,7 +391,7 @@ function deriveConceptTakeaway(
   return `Key principle in ${topicLabel}: Review standard relations in ${chapter} and avoid common calculation traps.`;
 }
 
-function formatEnrichedNote(note: any, diag?: AnalyzedConcept): EnrichedRevisionNote {
+function formatEnrichedNote(note: DbNoteWithQuestion, diag?: AnalyzedConcept): EnrichedRevisionNote {
   return {
     id: note.id,
     userId: note.userId,
@@ -393,8 +403,8 @@ function formatEnrichedNote(note: any, diag?: AnalyzedConcept): EnrichedRevision
     topic: note.topic,
     conceptKey: note.conceptKey,
     keyTakeaway: note.keyTakeaway,
-    createdAt: note.createdAt instanceof Date ? note.createdAt.toISOString() : note.createdAt,
-    updatedAt: note.updatedAt instanceof Date ? note.updatedAt.toISOString() : note.updatedAt,
+    createdAt: note.createdAt instanceof Date ? note.createdAt.toISOString() : String(note.createdAt),
+    updatedAt: note.updatedAt instanceof Date ? note.updatedAt.toISOString() : String(note.updatedAt),
     question: {
       id: note.question.id,
       text: note.question.text,
@@ -406,7 +416,7 @@ function formatEnrichedNote(note: any, diag?: AnalyzedConcept): EnrichedRevision
       difficulty: note.question.difficulty,
       correctOption: note.question.correctOption,
       explanation: note.question.explanation,
-      options: (note.question.options || []).map((o: any) => ({
+      options: (note.question.options || []).map((o: QuestionOption) => ({
         id: o.id,
         label: o.label,
         text: o.text,

@@ -74,7 +74,7 @@ export function parseConceptKey(key: string): ConceptMetadata {
 /**
  * Audits the question bank metadata to detect missing or irregular concept fields.
  */
-export async function auditConceptTaxonomy(prismaClient: any = defaultPrisma): Promise<TaxonomyAuditReport> {
+export async function auditConceptTaxonomy(prismaClient: typeof defaultPrisma = defaultPrisma): Promise<TaxonomyAuditReport> {
   const [totalQuestions, rawRecords] = await Promise.all([
     prismaClient.question.count(),
     prismaClient.question.findMany({

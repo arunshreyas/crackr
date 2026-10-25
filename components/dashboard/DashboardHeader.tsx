@@ -3,7 +3,6 @@
 import React from 'react';
 import Link from 'next/link';
 import { UserButton } from '@clerk/nextjs';
-import { Award, Zap } from 'lucide-react';
 
 interface DashboardHeaderProps {
   name: string;

@@ -52,7 +52,6 @@ export function DailyRewardCard({ dailyReward }: DailyRewardCardProps) {
         {rewardsTrack.map((item) => {
           const isToday = item.isCurrent;
           const isPast = item.isClaimed && !isToday;
-          const isFuture = !item.isClaimed;
 
           return (
             <div

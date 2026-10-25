@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { saveNoteAction } from '@/app/actions/notes';
+import { EnrichedRevisionNote } from '@/lib/server/notes/service';
 import {
   Bookmark,
   X,
@@ -22,7 +23,7 @@ interface SaveNoteModalProps {
   initialUserNote?: string;
   initialTags?: string[];
   initialTakeaway?: string;
-  onSaved?: (savedNote: any) => void;
+  onSaved?: (savedNote: EnrichedRevisionNote) => void;
 }
 
 const PRESET_TAGS = [
@@ -77,7 +78,7 @@ export function SaveNoteModal({
 
     setLoading(false);
 
-    if (!res.success) {
+    if (!res.success || !res.data) {
       setError(res.error || 'Failed to save note');
       return;
     }
