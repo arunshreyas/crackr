@@ -15,7 +15,6 @@ import {
   CheckCircle2,
   AlertCircle,
   Save,
-  Flame,
   Trash2,
 } from 'lucide-react';
 

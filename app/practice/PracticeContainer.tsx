@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { QuestionSubject, OptionLabel } from '@prisma/client';
@@ -19,7 +19,6 @@ import {
 import {
   PracticeSessionSummary,
   AnswerSubmissionResult,
-  ActiveSessionState,
   ActiveSessionAnswerState,
   ActiveSessionSummaryItem,
 } from '@/lib/server/practice/service';
@@ -29,8 +28,6 @@ import {
   CheckCircle2,
   XCircle,
   RotateCcw,
-  Sparkles,
-  Layers,
   ArrowRight,
   Loader2,
   ChevronDown,
@@ -38,9 +35,11 @@ import {
   Play,
   Trash2,
   Bookmark,
-  Calendar,
+  Target,
 } from 'lucide-react';
 import { MathRenderer } from '@/components/ui/MathRenderer';
+import { SaveNoteModal } from '@/components/notes/SaveNoteModal';
+import { getSavedQuestionIdsAction } from '@/app/actions/notes';
 
 interface PracticeContainerProps {
   catalog: SubjectCatalog;
@@ -103,6 +102,7 @@ export function PracticeContainer({
 
   const urlChapter = searchParams.get('chapter');
   const initialChapter = urlChapter || 'ALL';
+  const urlTopic = searchParams.get('topic');
 
   // Active persistent sessions list
   const [activeSessions, setActiveSessions] = useState<ActiveSessionSummaryItem[]>(initialActiveSessions);
@@ -113,6 +113,7 @@ export function PracticeContainer({
   // Config parameters
   const [selectedSubject, setSelectedSubject] = useState<QuestionSubject>(initialSubject);
   const [selectedChapter, setSelectedChapter] = useState<string>(initialChapter);
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(urlTopic || null);
   const initialDifficulty = (() => {
     if (!preferredDifficulty) return 'ALL';
     const u = preferredDifficulty.trim().toUpperCase();
@@ -137,47 +138,39 @@ export function PracticeContainer({
   const [submitting, setSubmitting] = useState(false);
   const [answerResult, setAnswerResult] = useState<AnswerSubmissionResult | null>(null);
   const [sessionAnsweredMap, setSessionAnsweredMap] = useState<Record<string, ActiveSessionAnswerState>>({});
-  const [startTime, setStartTime] = useState<number>(Date.now());
-  const [questionStartTime, setQuestionStartTime] = useState<number>(Date.now());
+  const [startTime, setStartTime] = useState<number>(() => Date.now());
+  const [questionStartTime, setQuestionStartTime] = useState<number>(() => Date.now());
 
   // Results state
   const [resultsSummary, setResultsSummary] = useState<PracticeSessionSummary | null>(null);
   const [expandedQuestions, setExpandedQuestions] = useState<Record<string, boolean>>({});
 
+  // Smart Notes integration state
+  const [savedQuestionIds, setSavedQuestionIds] = useState<Set<string>>(new Set());
+  const [modalQuestion, setModalQuestion] = useState<{
+    id: string;
+    subject: string;
+    chapter: string;
+    topic: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    getSavedQuestionIdsAction().then((res) => {
+      if (res.success && res.data) {
+        setSavedQuestionIds(new Set(res.data));
+      }
+    });
+  }, []);
+
   const currentQuestion = questions[currentIndex];
   const progressPct = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0;
-
-  // Keyboard shortcuts during active practice
-  useEffect(() => {
-    if (screenState !== 'ACTIVE') return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)) return;
-
-      const key = e.key.toUpperCase();
-      if (['A', 'B', 'C', 'D'].includes(key) && !answerResult && !submitting) {
-        setSelectedOption(key as OptionLabel);
-      } else if (['1', '2', '3', '4'].includes(key) && !answerResult && !submitting) {
-        const mapping: Record<string, OptionLabel> = { '1': 'A', '2': 'B', '3': 'C', '4': 'D' };
-        setSelectedOption(mapping[key]);
-      } else if (e.key === 'Enter') {
-        if (!answerResult && selectedOption && !submitting) {
-          handleSubmitAnswer();
-        } else if (answerResult && !loading) {
-          handleNextQuestion();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [screenState, selectedOption, answerResult, submitting, loading, currentIndex, questions.length]);
 
   const availableChapters = catalog[selectedSubject] || [];
 
   const handleSubjectChange = (subj: QuestionSubject) => {
     setSelectedSubject(subj);
     setSelectedChapter('ALL');
+    setSelectedTopic(null);
   };
 
   // Resume a specific active session by ID
@@ -223,8 +216,8 @@ export function PracticeContainer({
       }
 
       const priorDurationMs = (sess.durationSeconds || 0) * 1000;
-      setStartTime(Date.now() - priorDurationMs);
-      setQuestionStartTime(Date.now());
+      setStartTime(() => Date.now() - priorDurationMs);
+      setQuestionStartTime(() => Date.now());
       setExpandedQuestions({});
       setScreenState('ACTIVE');
     } else {
@@ -236,9 +229,11 @@ export function PracticeContainer({
   useEffect(() => {
     const resumeParam = searchParams.get('resume');
     if (resumeParam && screenState === 'CONFIG' && !resumingSessionId && !sessionId) {
-      handleResumeSessionById(resumeParam);
+      void Promise.resolve().then(() => {
+        handleResumeSessionById(resumeParam);
+      });
     }
-  }, [searchParams]);
+  }, [searchParams, screenState, resumingSessionId, sessionId]);
 
   // Discard / Abandon a specific active session
   const handleAbandonSession = async (sessId: string) => {
@@ -261,16 +256,22 @@ export function PracticeContainer({
   };
 
   // Start New Session Handler
-  const handleStartSession = async (customSubject?: QuestionSubject, customChapter?: string) => {
+  const handleStartSession = async (
+    customSubject?: QuestionSubject,
+    customChapter?: string,
+    customTopic?: string | null
+  ) => {
     setLoading(true);
     setError(null);
 
     const subj = customSubject || selectedSubject;
     const chap = customChapter !== undefined ? customChapter : selectedChapter;
+    const topic = customTopic !== undefined ? customTopic : selectedTopic;
 
     const res = await startPracticeAction({
       subject: subj,
       chapter: chap,
+      topic: topic || undefined,
       difficulty: selectedDifficulty,
       questionCount,
     });
@@ -284,8 +285,8 @@ export function PracticeContainer({
       setSelectedOption(null);
       setAnswerResult(null);
       setSessionAnsweredMap({});
-      setStartTime(Date.now());
-      setQuestionStartTime(Date.now());
+      setStartTime(() => Date.now());
+      setQuestionStartTime(() => Date.now());
       setExpandedQuestions({});
       setScreenState('ACTIVE');
     } else {
@@ -294,7 +295,7 @@ export function PracticeContainer({
   };
 
   // Submit Answer Handler
-  const handleSubmitAnswer = async () => {
+  const handleSubmitAnswer = useCallback(async () => {
     if (!sessionId || !selectedOption || !currentQuestion || submitting) return;
 
     setSubmitting(true);
@@ -327,10 +328,10 @@ export function PracticeContainer({
     } else {
       setError(res.error || 'Failed to submit answer.');
     }
-  };
+  }, [sessionId, selectedOption, currentQuestion, submitting, questionStartTime]);
 
   // Next Question / Complete Session Handler
-  const handleNextQuestion = async () => {
+  const handleNextQuestion = useCallback(async () => {
     if (currentIndex < questions.length - 1) {
       const nextIdx = currentIndex + 1;
       setCurrentIndex(nextIdx);
@@ -359,7 +360,7 @@ export function PracticeContainer({
         setAnswerResult(null);
       }
 
-      setQuestionStartTime(Date.now());
+      setQuestionStartTime(() => Date.now());
     } else {
       if (!sessionId) return;
       setLoading(true);
@@ -380,7 +381,33 @@ export function PracticeContainer({
         setError(res.error || 'Failed to finalize practice results.');
       }
     }
-  };
+  }, [currentIndex, questions, sessionAnsweredMap, sessionId, startTime]);
+
+  // Keyboard shortcuts during active practice
+  useEffect(() => {
+    if (screenState !== 'ACTIVE') return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)) return;
+
+      const key = e.key.toUpperCase();
+      if (['A', 'B', 'C', 'D'].includes(key) && !answerResult && !submitting) {
+        setSelectedOption(key as OptionLabel);
+      } else if (['1', '2', '3', '4'].includes(key) && !answerResult && !submitting) {
+        const mapping: Record<string, OptionLabel> = { '1': 'A', '2': 'B', '3': 'C', '4': 'D' };
+        setSelectedOption(mapping[key]);
+      } else if (e.key === 'Enter') {
+        if (!answerResult && selectedOption && !submitting) {
+          handleSubmitAnswer();
+        } else if (answerResult && !loading) {
+          handleNextQuestion();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [screenState, selectedOption, answerResult, submitting, loading, handleSubmitAnswer, handleNextQuestion]);
 
   // Exit practice and return to config with updated sessions list
   const handleExitPractice = async () => {
@@ -419,7 +446,7 @@ export function PracticeContainer({
       setSelectedOption(null);
       setAnswerResult(null);
     }
-    setQuestionStartTime(Date.now());
+    setQuestionStartTime(() => Date.now());
   };
 
   const toggleQuestionExpanded = (id: string) => {
@@ -632,6 +659,37 @@ export function PracticeContainer({
 
         {/* Configuration Form for New Session */}
         <div className="space-y-6 pt-2">
+          {/* Targeted Weak Concept Drill Banner */}
+          {selectedTopic && (
+            <div className="p-4 rounded-xl border border-red-500/30 bg-red-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-red-500/20 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">
+                  <Target className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-red-400 px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/30">
+                      Targeted Weak Concept Drill
+                    </span>
+                  </div>
+                  <p className="text-xs text-white font-medium mt-1">
+                    Focusing practice on <span className="font-semibold text-[#FF9D50]">{selectedTopic}</span>
+                    {selectedChapter !== 'ALL' && (
+                      <span className="text-zinc-400 font-normal"> · {selectedChapter}</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedTopic(null)}
+                className="text-xs text-zinc-400 hover:text-white px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] transition-colors self-start sm:self-auto cursor-pointer"
+              >
+                Clear Topic Filter
+              </button>
+            </div>
+          )}
+
           {activeSessions.length > 0 && (
             <div className="flex items-center gap-3">
               <div className="h-px flex-1 bg-white/[0.06]" />
@@ -739,6 +797,7 @@ export function PracticeContainer({
           <div className="pt-4 border-t border-white/[0.06] flex items-center justify-between">
             <span className="text-xs text-zinc-500">
               {questionCount} questions · {selectedSubject.charAt(0) + selectedSubject.slice(1).toLowerCase()}
+              {selectedTopic && <span className="text-[#FF9D50]"> · {selectedTopic}</span>}
             </span>
 
             <button
@@ -754,7 +813,7 @@ export function PracticeContainer({
                 </>
               ) : (
                 <>
-                  <span>Start Practice</span>
+                  <span>{selectedTopic ? `Drill Concept (${questionCount} Qs)` : 'Start Practice'}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </>
               )}
@@ -966,20 +1025,50 @@ export function PracticeContainer({
                   )}
                 </div>
 
-                <span
-                  className={`font-mono text-[11px] px-2 py-0.5 rounded ${
-                    answerResult.xpEarned > 0
-                      ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20'
-                      : answerResult.xpEarned < 0
-                      ? 'text-red-400 bg-red-500/10 border border-red-500/20 font-semibold'
-                      : 'text-zinc-400 bg-white/[0.04]'
-                  }`}
-                >
-                  {answerResult.xpEarned > 0
-                    ? `+${answerResult.xpEarned}`
-                    : answerResult.xpEarned}{' '}
-                  XP
-                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setModalQuestion({
+                        id: currentQuestion.id,
+                        subject: selectedSubject,
+                        chapter: currentQuestion.chapter,
+                        topic: currentQuestion.topic,
+                      })
+                    }
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors cursor-pointer ${
+                      savedQuestionIds.has(currentQuestion.id)
+                        ? 'bg-[#FF9D50]/15 text-[#FF9D50] border-[#FF9D50]/30 font-semibold'
+                        : 'bg-white/[0.04] text-zinc-300 border-white/[0.08] hover:bg-white/[0.08] hover:text-white'
+                    }`}
+                  >
+                    <Bookmark
+                      className={`w-3.5 h-3.5 ${
+                        savedQuestionIds.has(currentQuestion.id)
+                          ? 'fill-[#FF9D50] text-[#FF9D50]'
+                          : 'text-zinc-400'
+                      }`}
+                    />
+                    <span>
+                      {savedQuestionIds.has(currentQuestion.id) ? 'Saved in Notes' : 'Save as Smart Note'}
+                    </span>
+                  </button>
+
+                  <span
+                    className={`font-mono text-[11px] px-2 py-0.5 rounded ${
+                      answerResult.xpEarned > 0
+                        ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20'
+                        : answerResult.xpEarned < 0
+                        ? 'text-red-400 bg-red-500/10 border border-red-500/20 font-semibold'
+                        : 'text-zinc-400 bg-white/[0.04]'
+                    }`}
+                  >
+                    {answerResult.xpEarned > 0
+                      ? `+${answerResult.xpEarned}`
+                      : answerResult.xpEarned}{' '}
+                    XP
+                  </span>
+                </div>
               </div>
 
               {answerResult.explanation && (
@@ -1041,6 +1130,19 @@ export function PracticeContainer({
             )}
           </div>
         </div>
+
+        {/* Smart Notes Modal */}
+        <SaveNoteModal
+          isOpen={!!modalQuestion}
+          onClose={() => setModalQuestion(null)}
+          questionId={modalQuestion?.id || ''}
+          subjectName={modalQuestion?.subject}
+          chapterName={modalQuestion?.chapter}
+          topicName={modalQuestion?.topic}
+          onSaved={(savedNote) => {
+            setSavedQuestionIds((prev) => new Set([...prev, savedNote.questionId]));
+          }}
+        />
       </div>
     );
   }
@@ -1172,6 +1274,33 @@ export function PracticeContainer({
                     </div>
 
                     <div className="flex items-center gap-3 shrink-0 font-mono text-zinc-400">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setModalQuestion({
+                            id: q.questionId,
+                            subject: resultsSummary.subject,
+                            chapter: q.chapter,
+                            topic: q.topic,
+                          });
+                        }}
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium border transition-colors cursor-pointer ${
+                          savedQuestionIds.has(q.questionId)
+                            ? 'bg-[#FF9D50]/15 text-[#FF9D50] border-[#FF9D50]/30 font-semibold'
+                            : 'bg-white/[0.04] text-zinc-400 border-white/[0.08] hover:bg-white/[0.08] hover:text-white'
+                        }`}
+                      >
+                        <Bookmark
+                          className={`w-3 h-3 ${
+                            savedQuestionIds.has(q.questionId)
+                              ? 'fill-[#FF9D50] text-[#FF9D50]'
+                              : 'text-zinc-400'
+                          }`}
+                        />
+                        <span>{savedQuestionIds.has(q.questionId) ? 'Saved' : 'Save Note'}</span>
+                      </button>
+
                       <span>
                         Selected <strong className="text-white">{q.selectedOption}</strong>
                       </span>
@@ -1239,6 +1368,19 @@ export function PracticeContainer({
             <span>Start Another Session</span>
           </button>
         </div>
+
+        {/* Smart Notes Modal */}
+        <SaveNoteModal
+          isOpen={!!modalQuestion}
+          onClose={() => setModalQuestion(null)}
+          questionId={modalQuestion?.id || ''}
+          subjectName={modalQuestion?.subject}
+          chapterName={modalQuestion?.chapter}
+          topicName={modalQuestion?.topic}
+          onSaved={(savedNote) => {
+            setSavedQuestionIds((prev) => new Set([...prev, savedNote.questionId]));
+          }}
+        />
       </div>
     );
   }

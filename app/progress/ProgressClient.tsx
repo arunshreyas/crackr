@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { AppSidebar } from '@/components/dashboard/AppSidebar';
 import {
   ProgressData,
-  ChapterMastery,
 } from '@/lib/server/progress/service';
 import { QuestionSubject } from '@prisma/client';
 import {
@@ -13,11 +12,8 @@ import {
   Target,
   Clock,
   Zap,
-  CheckCircle2,
-  AlertCircle,
   BookOpen,
   ArrowRight,
-  Filter,
   Search,
   Calendar,
   Layers,

@@ -1,20 +1,16 @@
 import 'server-only';
 import { prisma } from '@/lib/server/db';
 import {
-  XP_CONFIG,
   DAILY_LOGIN_REWARDS,
   V1_ACHIEVEMENTS,
   calculateLevel,
-  calculateRank,
 } from './config';
 
 /**
  * Idempotently seeds base V1 achievements into the PostgreSQL database.
  */
 export async function ensureAchievementsSeeded(): Promise<void> {
-  const achDelegate =
-    (prisma as any).achievement ||
-    (prisma as any).Achievement;
+  const achDelegate = prisma.achievement;
 
   if (!achDelegate) return;
 
@@ -65,10 +61,7 @@ export async function awardXp(
   }
 
   // 1. Resolve XPTransaction delegate safely across Prisma client conventions
-  const xpDelegate =
-    (prisma as any).xPTransaction ||
-    (prisma as any).xpTransaction ||
-    (prisma as any).XPTransaction;
+  const xpDelegate = prisma.xPTransaction;
 
   if (xpDelegate) {
     try {
@@ -182,12 +175,8 @@ export async function checkAndUnlockAchievements(
     sessionQuestions?: number;
   }
 ): Promise<UnlockedAchievementInfo[]> {
-  const achDelegate =
-    (prisma as any).achievement ||
-    (prisma as any).Achievement;
-  const userAchDelegate =
-    (prisma as any).userAchievement ||
-    (prisma as any).UserAchievement;
+  const achDelegate = prisma.achievement;
+  const userAchDelegate = prisma.userAchievement;
 
   if (!achDelegate || !userAchDelegate) return [];
 
@@ -198,7 +187,11 @@ export async function checkAndUnlockAchievements(
       where: { userId },
       select: { achievement: { select: { code: true } } },
     });
-    unlockedCodes = new Set(unlocked.map((u: any) => u.achievement?.code).filter(Boolean));
+    unlockedCodes = new Set(
+      unlocked
+        .map((u: { achievement?: { code?: string } | null }) => u.achievement?.code)
+        .filter((code): code is string => Boolean(code))
+    );
   } catch {
     // Continue with empty set if query fails
   }

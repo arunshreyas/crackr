@@ -165,7 +165,7 @@ export default function PlasmaWave(props: PlasmaWaveProps) {
 
     const renderer = new Renderer({
       alpha: true,
-      dpr: Math.min(window.devicePixelRatio, 1.5),
+      dpr: Math.min(window.devicePixelRatio, 1.25),
       antialias: true,
       depth: false,
       stencil: false,
@@ -227,8 +227,14 @@ export default function PlasmaWave(props: PlasmaWaveProps) {
 
     const startTime = performance.now();
     let animateId: number;
+    let lastRender = 0;
 
     const update = (now: number) => {
+      animateId = requestAnimationFrame(update);
+      // This decorative shader is expensive on mobile GPUs. 30 fps keeps it
+      // smooth while leaving more time for the page and user interactions.
+      if (document.hidden || now - lastRender < 1000 / 30) return;
+      lastRender = now;
       const {
         xOffset: xOff = 0,
         yOffset: yOff = 0,
@@ -258,7 +264,6 @@ export default function PlasmaWave(props: PlasmaWaveProps) {
       program.uniforms.uLightMode.value = isLight ? 1 : 0;
 
       renderer.render({ scene, camera });
-      animateId = requestAnimationFrame(update);
     };
 
     animateId = requestAnimationFrame(update);

@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
 import { DashboardData } from '@/lib/services/dashboard';
 import { AppSidebar } from '@/components/dashboard/AppSidebar';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
@@ -13,6 +12,7 @@ import { SubjectPerformance } from '@/components/dashboard/SubjectPerformance';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
 import { DailyRewardCard } from '@/components/dashboard/DailyRewardCard';
 import { PrimaryActionHero } from '@/components/dashboard/PrimaryActionHero';
+import { WeakConceptsCard } from '@/components/dashboard/WeakConceptsCard';
 
 interface DashboardClientProps {
   data: DashboardData;
@@ -60,7 +60,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
           {/* 3. Daily Login Reward & Streak Bonus */}
           {data.dailyReward && <DailyRewardCard dailyReward={data.dailyReward} />}
 
-          {/* 2. Today's Target Progress & Overview Stats Grid */}
+          {/* 4. Today's Target Progress & Overview Stats Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-5">
               <GoalProgress today={data.today} />
@@ -70,7 +70,12 @@ export function DashboardClient({ data }: DashboardClientProps) {
             </div>
           </div>
 
-          {/* 3. Study Consistency / Weekly Pattern */}
+          {/* 5. Weak Concept Diagnostics */}
+          {data.conceptDiagnostics && (
+            <WeakConceptsCard diagnostics={data.conceptDiagnostics} />
+          )}
+
+          {/* 6. Study Consistency / Weekly Pattern */}
           <Consistency consistency={data.consistency} />
 
           {/* 4. Questions Solved & Accuracy Progress Charts */}

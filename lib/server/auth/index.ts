@@ -14,8 +14,8 @@ export interface AuthenticatedUserContext {
  * and links to the canonical UserProfile in PostgreSQL.
  * Supports automatic email-linking for returning users so existing data is never lost.
  */
-export async function getAuthenticatedUser(): Promise<AuthenticatedUserContext | null> {
-  const { userId } = await auth();
+export async function getAuthenticatedUser(knownUserId?: string): Promise<AuthenticatedUserContext | null> {
+  const userId = knownUserId ?? (await auth()).userId;
   if (!userId) return null;
 
   let profile = await prisma.userProfile.findUnique({

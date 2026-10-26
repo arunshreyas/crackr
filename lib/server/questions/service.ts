@@ -89,10 +89,11 @@ export function normalizeDifficulty(diff?: string | null): string | undefined {
 export async function getQuestionsForPractice(params: {
   subject?: QuestionSubject;
   chapter?: string;
+  topic?: string;
   difficulty?: string;
   count: number;
 }): Promise<ClientSafeQuestion[]> {
-  const { subject, chapter, difficulty, count = 10 } = params;
+  const { subject, chapter, topic, difficulty, count = 10 } = params;
   const normalizedDiff = normalizeDifficulty(difficulty);
 
   const baseWhere: Record<string, unknown> = {
@@ -102,6 +103,9 @@ export async function getQuestionsForPractice(params: {
   if (subject) baseWhere.subject = subject;
   if (chapter && chapter !== 'ALL') {
     baseWhere.chapter = chapter;
+  }
+  if (topic && topic !== 'ALL') {
+    baseWhere.topic = topic;
   }
 
   const whereWithDiff = normalizedDiff
@@ -128,23 +132,51 @@ export async function getQuestionsForPractice(params: {
     },
   };
 
-  // 1. Fetch candidate questions with difficulty filter (if requested)
+  // 1. Fetch candidate questions with full filter (subject, chapter, topic, difficulty)
   let questions = await prisma.question.findMany({
     where: whereWithDiff,
     take: count * 4,
     select: selectFields,
   });
 
-  // 2. If filtered difficulty returned 0 questions (e.g. rare chapter combo), fallback to base chapter/subject
-  if (questions.length === 0 && normalizedDiff) {
-    questions = await prisma.question.findMany({
+  // 2. If filtered difficulty returned fewer than count questions, relax difficulty
+  if (questions.length < count && normalizedDiff) {
+    const fallbackWithoutDiff = await prisma.question.findMany({
       where: baseWhere,
       take: count * 4,
       select: selectFields,
     });
+    const existingIds = new Set(questions.map((q) => q.id));
+    for (const q of fallbackWithoutDiff) {
+      if (!existingIds.has(q.id)) {
+        questions.push(q);
+        existingIds.add(q.id);
+      }
+    }
   }
 
-  // 3. If still 0 (e.g. rare chapter mismatch), fallback to subject
+  // 3. If topic was specified and we still don't have enough questions, broaden to chapter/subject
+  if (questions.length < count && topic && topic !== 'ALL') {
+    const chapterWhere: Record<string, unknown> = { type: 'MCQ' };
+    if (subject) chapterWhere.subject = subject;
+    if (chapter && chapter !== 'ALL') chapterWhere.chapter = chapter;
+
+    const chapterFallback = await prisma.question.findMany({
+      where: chapterWhere,
+      take: count * 4,
+      select: selectFields,
+    });
+
+    const existingIds = new Set(questions.map((q) => q.id));
+    for (const q of chapterFallback) {
+      if (!existingIds.has(q.id)) {
+        questions.push(q);
+        existingIds.add(q.id);
+      }
+    }
+  }
+
+  // 4. If still 0 (e.g. rare chapter mismatch), fallback to subject
   if (questions.length === 0 && subject) {
     questions = await prisma.question.findMany({
       where: { type: 'MCQ', subject },

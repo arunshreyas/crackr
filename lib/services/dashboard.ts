@@ -3,9 +3,11 @@ import { prisma } from '@/lib/server/db';
 import { QuestionSubject } from '@prisma/client';
 import { calculateLevel, calculateRank } from '@/lib/server/gamification/config';
 import { checkAndClaimDailyLoginReward, DailyLoginStatus } from '@/lib/server/gamification/service';
+import { getUserConceptDiagnostics, UserConceptDiagnosticsSummary } from '@/lib/server/concepts/analysis';
 
 export interface DashboardData {
   dailyReward: DailyLoginStatus;
+  conceptDiagnostics: UserConceptDiagnosticsSummary;
   activeSession: {
     sessionId: string;
     subject: QuestionSubject | null;
@@ -111,6 +113,8 @@ export interface DashboardData {
     actionText: string;
     targetSubject: QuestionSubject;
     targetChapter: string | null;
+    targetTopic?: string | null;
+    isWeakConceptDrill?: boolean;
   };
 }
 
@@ -143,23 +147,17 @@ export async function getDashboardData(clerkUserId: string): Promise<DashboardDa
 
   if (!profile) return null;
 
-  // 1. Authoritatively check and grant daily login reward for today
-  const dailyReward = await checkAndClaimDailyLoginReward(profile.id);
-
-  // 2. Lifetime answer stats check to ensure UserProfile is 100% in sync without losing any XP
-  const [allAnswers, xpTxAgg] = await Promise.all([
-    prisma.quizAnswer.findMany({
-      where: { userId: profile.id },
-      select: { isCorrect: true },
-    }),
+  // These reads do not depend on each other. Count in Postgres instead of
+  // transferring every historical answer to the app server.
+  const [dailyReward, totalAnsweredCount, totalCorrectCount, xpTxAgg] = await Promise.all([
+    checkAndClaimDailyLoginReward(profile.id),
+    prisma.quizAnswer.count({ where: { userId: profile.id } }),
+    prisma.quizAnswer.count({ where: { userId: profile.id, isCorrect: true } }),
     prisma.xPTransaction.aggregate({
       where: { userId: profile.id },
       _sum: { amount: true },
     }),
   ]);
-
-  const totalAnsweredCount = allAnswers.length;
-  const totalCorrectCount = allAnswers.filter((a) => a.isCorrect).length;
   const transactionXp = xpTxAgg._sum.amount || 0;
 
   const authoritativeXp = Math.max(profile.xp, dailyReward.totalXp, transactionXp, totalCorrectCount * 20);
@@ -196,29 +194,23 @@ export async function getDashboardData(clerkUserId: string): Promise<DashboardDa
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
   ninetyDaysAgo.setHours(0, 0, 0, 0);
 
-  // 1. Fetch user's answers in last 90 days
-  const answers = await prisma.quizAnswer.findMany({
-    where: {
-      userId: profile.id,
-      createdAt: { gte: ninetyDaysAgo },
-    },
-    select: {
-      id: true,
-      isCorrect: true,
-      timeTakenSeconds: true,
-      createdAt: true,
-      question: {
-        select: {
-          subject: true,
-          chapter: true,
-        },
+  // Fetch dashboard panels concurrently instead of making charts wait for the
+  // practice and diagnostics queries to finish first.
+  const [answers, activeSessionsData, recentSessionsData, conceptDiagnostics] = await Promise.all([
+    prisma.quizAnswer.findMany({
+      where: {
+        userId: profile.id,
+        createdAt: { gte: ninetyDaysAgo },
       },
-    },
-    orderBy: { createdAt: 'asc' },
-  });
-
-  // 2. Fetch user's active persistent sessions and recent completed sessions
-  const [activeSessionsData, recentSessionsData] = await Promise.all([
+      select: {
+        id: true,
+        isCorrect: true,
+        timeTakenSeconds: true,
+        createdAt: true,
+        question: { select: { subject: true, chapter: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    }),
     prisma.quizSession.findMany({
       where: {
         userId: profile.id,
@@ -237,6 +229,7 @@ export async function getDashboardData(clerkUserId: string): Promise<DashboardDa
       orderBy: { createdAt: 'desc' },
       take: 5,
     }),
+    getUserConceptDiagnostics(profile.id),
   ]);
 
   const validActiveSessions = activeSessionsData.filter((s) => s.questionIds && s.questionIds.length > 0);
@@ -485,13 +478,23 @@ export async function getDashboardData(clerkUserId: string): Promise<DashboardDa
     createdAt: s.createdAt.toISOString(),
   }));
 
-  // Recommended practice target (strictly dynamic from user history)
+  // Recommended practice target (strictly dynamic from user history & weak concept diagnostics)
   const mostRecentSession = recentSessionsData[0];
   let actionText = 'Start practicing';
   let targetSubject: QuestionSubject = 'PHYSICS';
   let targetChapter: string | null = null;
+  let targetTopic: string | null = null;
+  let isWeakConceptDrill = false;
 
-  if (mostRecentSession) {
+  const topWeak = conceptDiagnostics.topWeakConcepts[0];
+  if (topWeak && (topWeak.weaknessLevel === 'CRITICAL_WEAKNESS' || topWeak.weaknessLevel === 'NEEDS_ATTENTION')) {
+    targetSubject = topWeak.subject;
+    targetChapter = topWeak.chapter;
+    targetTopic = topWeak.topic;
+    isWeakConceptDrill = true;
+    const sName = topWeak.subject.charAt(0) + topWeak.subject.slice(1).toLowerCase();
+    actionText = `Drill Weak Concept: ${topWeak.topic} (${sName})`;
+  } else if (mostRecentSession) {
     targetSubject = mostRecentSession.subject || 'PHYSICS';
     targetChapter = mostRecentSession.chapter || null;
     if (mostRecentSession.subject) {
@@ -507,6 +510,7 @@ export async function getDashboardData(clerkUserId: string): Promise<DashboardDa
 
   return {
     dailyReward,
+    conceptDiagnostics,
     activeSession,
     activeSessionsCount: validActiveSessions.length,
     profile: {
@@ -562,6 +566,8 @@ export async function getDashboardData(clerkUserId: string): Promise<DashboardDa
       actionText,
       targetSubject,
       targetChapter,
+      targetTopic,
+      isWeakConceptDrill,
     },
   };
 }

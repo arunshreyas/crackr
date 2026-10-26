@@ -5,7 +5,6 @@ import { requireAuthenticatedUser } from '@/lib/server/auth';
 import { getQuestionsForPractice, ClientSafeQuestion } from '@/lib/server/questions/service';
 import {
   awardXp,
-  updateStreakOnPractice,
   checkAndUnlockAchievements,
   UnlockedAchievementInfo,
 } from '@/lib/server/gamification/service';
@@ -309,6 +308,7 @@ export async function getActivePracticeSession(): Promise<ActiveSessionState | n
 export async function startPracticeSession(params: {
   subject?: QuestionSubject;
   chapter?: string;
+  topic?: string;
   difficulty?: string;
   questionCount?: number;
 }): Promise<StartPracticeResult> {
@@ -320,6 +320,7 @@ export async function startPracticeSession(params: {
     getQuestionsForPractice({
       subject: params.subject,
       chapter: params.chapter,
+      topic: params.topic,
       difficulty: params.difficulty,
       count,
     }),
@@ -332,11 +333,19 @@ export async function startPracticeSession(params: {
   const questionIds = questions.map((q) => q.id);
   const now = new Date();
 
+  // If topic is specified and differs from chapter, include topic in chapter display
+  const chapterDisplay =
+    params.topic && params.chapter && params.topic !== params.chapter
+      ? `${params.chapter} · ${params.topic}`
+      : params.chapter && params.chapter !== 'ALL'
+        ? params.chapter
+        : params.topic || 'Mixed Practice';
+
   const session = await prisma.quizSession.create({
     data: {
       userId: profile.id,
       subject: params.subject,
-      chapter: params.chapter && params.chapter !== 'ALL' ? params.chapter : 'Mixed Practice',
+      chapter: chapterDisplay,
       difficulty: params.difficulty || 'ALL',
       status: SessionStatus.ACTIVE,
       questionIds,

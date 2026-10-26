@@ -14,7 +14,7 @@ export default async function DashboardPage() {
     redirect('/sign-in');
   }
 
-  const authCtx = await getAuthenticatedUser();
+  const authCtx = await getAuthenticatedUser(userId);
 
   // 2. Incomplete onboarding / profile check -> /onboarding
   if (!authCtx || !authCtx.profile.onboardingCompleted) {

@@ -58,6 +58,7 @@ export async function getActiveSessionAction(): Promise<{
 export async function startPracticeAction(params: {
   subject?: QuestionSubject;
   chapter?: string;
+  topic?: string;
   difficulty?: string;
   questionCount?: number;
 }): Promise<{ success: boolean; data?: StartPracticeResult; error?: string }> {
