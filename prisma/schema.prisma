@@ -40,6 +40,7 @@ model UserProfile {
   xpTransactions XPTransaction[]
   achievements   UserAchievement[]
   notes          RevisionNote[]
+  revisionRecords RevisionRecord[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -251,4 +252,35 @@ model RevisionNote {
   @@index([userId, subject])
   @@index([userId, conceptKey])
   @@index([userId, createdAt])
+}
+
+enum RevisionStatus {
+  NOT_REVIEWED
+  REVIEWED
+  NEEDS_PRACTICE
+}
+
+model RevisionRecord {
+  id             String         @id @default(cuid())
+  userId         String
+  user           UserProfile    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conceptKey     String         @db.VarChar(500)
+  subject        QuestionSubject
+  chapter        String         @db.VarChar(255)
+  topic          String?        @db.VarChar(255)
+  status         RevisionStatus @default(NOT_REVIEWED)
+  reviewCount    Int            @default(0)
+  lastReviewedAt DateTime?
+  nextReviewDue  DateTime?
+  lastFeedback   String?        @db.VarChar(50)
+  notes          String?        @db.Text
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([userId, conceptKey])
+  @@index([userId])
+  @@index([userId, status])
+  @@index([userId, nextReviewDue])
+  @@index([userId, conceptKey])
+  @@index([userId, subject])
 }
