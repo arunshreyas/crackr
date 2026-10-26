@@ -16,6 +16,7 @@ import {
   X,
   Zap,
   Bookmark,
+  RotateCcw,
 } from 'lucide-react';
 import { HelpModal } from './HelpModal';
 import { ContactModal } from './ContactModal';
@@ -85,6 +86,7 @@ export function AppSidebar() {
   const mainNav = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/practice', label: 'Practice', icon: BookOpen },
+    { href: '/revision', label: 'Smart Revision', icon: RotateCcw },
     { href: '/notes', label: 'Smart Notes', icon: Bookmark },
     { href: '/progress', label: 'Progress', icon: TrendingUp },
     { href: '/profile', label: 'Ranks & Levels', icon: Award },
@@ -327,7 +329,15 @@ export function AppSidebar() {
               }`}
             >
               <Icon className={`w-4 h-4 ${isActive ? 'text-[#FF9D50]' : 'text-zinc-400'}`} />
-              <span>{item.label === 'Ranks & Levels' ? 'Ranks' : item.label}</span>
+              <span>
+                {item.label === 'Smart Revision'
+                  ? 'Revision'
+                  : item.label === 'Smart Notes'
+                    ? 'Notes'
+                    : item.label === 'Ranks & Levels'
+                      ? 'Ranks'
+                      : item.label}
+              </span>
             </Link>
           );
         })}
