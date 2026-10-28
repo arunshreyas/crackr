@@ -48,11 +48,12 @@ interface VisualExplanationProps {
 /**
  * Extracts discrete logical steps from a worked solution explanation.
  */
-function parseExplanationSteps(rawExp: string | null): Array<{ title: string; content: string }> {
+export function parseExplanationSteps(rawExp: string | null): Array<{ title: string; content: string }> {
   if (!rawExp) return [];
 
   // Remove raw source image tags first so they don't break step parsing
   const cleaned = rawExp.replace(/<source[\s\S]*?>/gi, '').trim();
+  if (!cleaned) return [];
 
   // Split by double newline or numbered marker
   const rawParagraphs = cleaned
