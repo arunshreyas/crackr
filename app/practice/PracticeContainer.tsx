@@ -1254,12 +1254,17 @@ export function PracticeContainer({
                   key={q.questionId}
                   className="rounded-xl border border-white/[0.06] bg-white/[0.01] overflow-hidden transition-colors"
                 >
-                  <button
-                    type="button"
-                    onClick={() => toggleQuestionExpanded(q.questionId)}
-                    className="w-full p-4 text-left flex items-center justify-between gap-3 text-xs hover:bg-white/[0.02] transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
+                  <div className="relative flex items-center justify-between gap-3 p-4 text-xs hover:bg-white/[0.02] transition-colors">
+                    <button
+                      type="button"
+                      onClick={() => toggleQuestionExpanded(q.questionId)}
+                      aria-expanded={isExpanded}
+                      aria-controls={`question-review-${q.questionId}`}
+                      aria-label={`${isExpanded ? 'Collapse' : 'Expand'} review for question ${idx + 1}: ${q.topic || q.chapter}. Selected option ${q.selectedOption}, ${q.isCorrect ? 'correct' : 'incorrect'}`}
+                      className="absolute inset-0 w-full h-full text-left cursor-pointer z-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[#FF9D50]"
+                    />
+
+                    <div className="relative z-10 pointer-events-none flex items-center gap-3 min-w-0" aria-hidden="true">
                       <span className="font-mono text-zinc-500 shrink-0">
                         {idx + 1 < 10 ? `0${idx + 1}` : idx + 1}
                       </span>
@@ -1273,7 +1278,7 @@ export function PracticeContainer({
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-3 shrink-0 font-mono text-zinc-400">
+                    <div className="relative z-10 flex items-center gap-3 shrink-0 font-mono text-zinc-400">
                       <button
                         type="button"
                         onClick={(e) => {
@@ -1285,6 +1290,11 @@ export function PracticeContainer({
                             topic: q.topic,
                           });
                         }}
+                        aria-label={
+                          savedQuestionIds.has(q.questionId)
+                            ? `Note saved for question ${idx + 1}`
+                            : `Save note for question ${idx + 1}`
+                        }
                         className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium border transition-colors cursor-pointer ${
                           savedQuestionIds.has(q.questionId)
                             ? 'bg-[#FF9D50]/15 text-[#FF9D50] border-[#FF9D50]/30 font-semibold'
@@ -1301,19 +1311,24 @@ export function PracticeContainer({
                         <span>{savedQuestionIds.has(q.questionId) ? 'Saved' : 'Save Note'}</span>
                       </button>
 
-                      <span>
+                      <span className="pointer-events-none" aria-hidden="true">
                         Selected <strong className="text-white">{q.selectedOption}</strong>
                       </span>
-                      {isExpanded ? (
-                        <ChevronUp className="w-3.5 h-3.5 text-zinc-500" />
-                      ) : (
-                        <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
-                      )}
+                      <span className="pointer-events-none flex items-center" aria-hidden="true">
+                        {isExpanded ? (
+                          <ChevronUp className="w-3.5 h-3.5 text-zinc-500" />
+                        ) : (
+                          <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
+                        )}
+                      </span>
                     </div>
-                  </button>
+                  </div>
 
                   {isExpanded && (
-                    <div className="p-4 pt-1 border-t border-white/[0.04] space-y-3 text-xs">
+                    <div
+                      id={`question-review-${q.questionId}`}
+                      className="p-4 pt-1 border-t border-white/[0.04] space-y-3 text-xs"
+                    >
                       <div className="text-zinc-200 leading-relaxed pt-2">
                         <MathRenderer content={q.text} />
                       </div>
