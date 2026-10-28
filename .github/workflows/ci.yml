@@ -39,8 +39,8 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
-      - name: Run ingestion validation tests
-        run: npm run test:ingest
+      - name: Run automated test suite
+        run: npm test
 
       - name: Build production application
         run: npm run build

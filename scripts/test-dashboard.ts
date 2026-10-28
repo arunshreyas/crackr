@@ -1,7 +1,21 @@
-import { prisma } from '../lib/prisma';
-import { getDashboardData } from '../lib/services/dashboard';
+import 'dotenv/config';
+import Module from 'module';
+
+// Polyfill server-only for CLI test execution
+// @ts-ignore
+const originalLoad = Module._load;
+// @ts-ignore
+Module._load = function (request, parent, isMain) {
+  if (request === 'server-only') {
+    return {};
+  }
+  return originalLoad.apply(this, arguments);
+};
 
 async function testDashboardScenarios() {
+  const { prisma } = await import('../lib/server/db');
+  const { getDashboardData } = await import('../lib/services/dashboard');
+
   console.log('--- Testing Crackr Dashboard Scenarios ---\n');
 
   // Test clerk ID
