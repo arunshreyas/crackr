@@ -99,9 +99,9 @@ export function NoteCard({ note, onOpenDetail, onDelete }: NoteCardProps) {
       {note.keyTakeaway && (
         <div className="p-2.5 rounded-xl border border-white/[0.05] bg-white/[0.02] flex items-start gap-2 text-[11px]">
           <Lightbulb className="w-3.5 h-3.5 text-[#FF9D50] shrink-0 mt-0.5" />
-          <p className="text-zinc-300 line-clamp-2 leading-relaxed">
-            {note.keyTakeaway}
-          </p>
+          <div className="text-zinc-300 line-clamp-2 leading-relaxed">
+            <MathRenderer content={note.keyTakeaway} inline />
+          </div>
         </div>
       )}
 

@@ -499,14 +499,14 @@ export function RevisionDetailModal({
                     {note.keyTakeaway && (
                       <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs">
                         <strong className="text-amber-400">Key Takeaway: </strong>
-                        {note.keyTakeaway}
+                        <MathRenderer content={note.keyTakeaway} inline />
                       </div>
                     )}
 
                     {note.userNote && (
-                      <p className="text-zinc-300 italic">
-                        &ldquo;{note.userNote}&rdquo;
-                      </p>
+                      <div className="text-zinc-300 italic">
+                        &ldquo;<MathRenderer content={note.userNote} inline />&rdquo;
+                      </div>
                     )}
                   </div>
                 ))

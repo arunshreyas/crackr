@@ -380,14 +380,14 @@ export function RevisionClient({ initialData }: RevisionClientProps) {
                       className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.05] space-y-1.5 text-xs"
                     >
                       {n.keyTakeaway ? (
-                        <p className="text-amber-200/90 text-[11px] leading-snug line-clamp-2">
+                        <div className="text-amber-200/90 text-[11px] leading-snug line-clamp-2">
                           <strong className="text-amber-400">Takeaway: </strong>
-                          {n.keyTakeaway}
-                        </p>
+                          <MathRenderer content={n.keyTakeaway} inline />
+                        </div>
                       ) : n.userNote ? (
-                        <p className="text-zinc-300 text-[11px] italic line-clamp-2">
-                          &ldquo;{n.userNote}&rdquo;
-                        </p>
+                        <div className="text-zinc-300 text-[11px] italic line-clamp-2">
+                          &ldquo;<MathRenderer content={n.userNote} inline />&rdquo;
+                        </div>
                       ) : null}
                     </div>
                   ))}

@@ -385,7 +385,15 @@ function deriveConceptTakeaway(
   const firstInsight = lines.find((l) => !l.startsWith('$$') && !l.startsWith('Given') && !l.startsWith('Digits ='));
 
   if (firstInsight && firstInsight.length <= 160) {
-    return firstInsight;
+    let balanced = firstInsight;
+    for (const tag of ['sub', 'sup', 'b', 'strong', 'i', 'em']) {
+      const openCount = (balanced.match(new RegExp(`<${tag}(?:\\s+[^>]*)?>`, 'gi')) || []).length;
+      const closeCount = (balanced.match(new RegExp(`</${tag}>`, 'gi')) || []).length;
+      if (openCount > closeCount) {
+        balanced += `</${tag}>`.repeat(openCount - closeCount);
+      }
+    }
+    return balanced;
   }
 
   return `Key principle in ${topicLabel}: Review standard relations in ${chapter} and avoid common calculation traps.`;

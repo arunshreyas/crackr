@@ -298,9 +298,9 @@ export function VisualExplanation({
             <Lightbulb className="w-4 h-4" />
             <span>Key Principle & Exam Takeaway</span>
           </div>
-          <p className="text-xs text-zinc-200 leading-relaxed font-normal">
-            {keyTakeaway}
-          </p>
+          <div className="text-xs text-zinc-200 leading-relaxed font-normal">
+            <MathRenderer content={keyTakeaway} />
+          </div>
         </div>
       )}
 
@@ -347,9 +347,9 @@ export function VisualExplanation({
             <Hash className="w-3.5 h-3.5 text-zinc-500" />
             <span>My Personal Revision Note</span>
           </div>
-          <p className="text-xs text-zinc-300 whitespace-pre-wrap leading-relaxed">
-            {userNote}
-          </p>
+          <div className="text-xs text-zinc-300 leading-relaxed">
+            <MathRenderer content={userNote} />
+          </div>
         </div>
       )}
     </div>

@@ -136,4 +136,150 @@ Choose the correct answer from the options given below:
       assert.ok(html.includes('List - II'));
     });
   });
+
+  describe('Mathematical Notation, Subscripts, Superscripts & Robust Normalization', () => {
+    test('renders Unicode subscripts and HTML <sub> subscripts correctly', () => {
+      const unicodeInput = 'Initial velocity V₀ and final velocity V₁';
+      const unicodeHtml = formatJeeContent(unicodeInput);
+      assert.ok(unicodeHtml.includes('V₀'), 'Unicode subscript V₀ should be preserved');
+      assert.ok(unicodeHtml.includes('V₁'), 'Unicode subscript V₁ should be preserved');
+
+      const htmlSubInput = 'Concentration [V<sub>0</sub>] and coordinate x<sub>1</sub>';
+      const htmlSubOutput = formatJeeContent(htmlSubInput);
+      assert.ok(htmlSubOutput.includes('<sub class="text-[0.75em] bottom-[-0.2em] relative font-medium">0</sub>'), 'Should style <sub> with typography classes');
+      assert.ok(htmlSubOutput.includes('<sub class="text-[0.75em] bottom-[-0.2em] relative font-medium">1</sub>'), 'Should style <sub> with typography classes');
+      assert.ok(!htmlSubOutput.includes('<sub>0</sub>'), 'Should not leave raw unstyled <sub> tags');
+    });
+
+    test('renders Unicode superscripts and HTML <sup> superscripts correctly', () => {
+      const unicodeSup = 'Area in m² and volume in cm³';
+      const unicodeHtml = formatJeeContent(unicodeSup);
+      assert.ok(unicodeHtml.includes('m²'), 'Unicode square m² should be preserved');
+      assert.ok(unicodeHtml.includes('cm³'), 'Unicode cube cm³ should be preserved');
+
+      const htmlSupInput = 'Dimensions: h<sup>P</sup>c<sup>Q</sup>G<sup>R</sup>';
+      const htmlSupOutput = formatJeeContent(htmlSupInput);
+      assert.ok(htmlSupOutput.includes('<sup class="text-[0.75em] top-[-0.3em] relative font-medium">P</sup>'));
+      assert.ok(htmlSupOutput.includes('<sup class="text-[0.75em] top-[-0.3em] relative font-medium">Q</sup>'));
+      assert.ok(htmlSupOutput.includes('<sup class="text-[0.75em] top-[-0.3em] relative font-medium">R</sup>'));
+      assert.ok(!htmlSupOutput.includes('<sup>P</sup>'), 'Should not leave raw unstyled <sup> tags');
+    });
+
+    test('renders LaTeX fractions, roots, integrals, and Greek letters via KaTeX', () => {
+      const latexInput = 'The equation is $$\\frac{1}{2}mv^2 + \\int_0^t F\\,dt = \\sqrt{3}\\omega$$ for angle $$\\theta = \\frac{\\pi}{3}$$';
+      const html = formatJeeContent(latexInput);
+
+      assert.ok(html.includes('katex'), 'Should render through KaTeX');
+      assert.ok(html.includes('mfrac'), 'KaTeX should generate fraction DOM nodes');
+      assert.ok(html.includes('msqrt'), 'KaTeX should generate square root DOM nodes');
+      assert.ok(!html.includes('$$\\frac{1}{2}'), 'Raw LaTeX delimiters should be replaced with KaTeX HTML');
+    });
+
+    test('renders mixed HTML-style markup and LaTeX seamlessly in the same sentence', () => {
+      const mixed = 'V<sub>0</sub> $$ \\propto $$ h<sup>P</sup>c<sup>Q</sup>G<sup>R</sup>I<sup>S</sup>';
+      const html = formatJeeContent(mixed);
+
+      assert.ok(html.includes('katex'), 'KaTeX should render the \\propto symbol');
+      assert.ok(html.includes('∝'), 'Should contain proportionality symbol');
+      assert.ok(html.includes('<sub class="text-[0.75em] bottom-[-0.2em] relative font-medium">0</sub>'));
+      assert.ok(html.includes('<sup class="text-[0.75em] top-[-0.3em] relative font-medium">P</sup>'));
+      assert.ok(html.includes('<sup class="text-[0.75em] top-[-0.3em] relative font-medium">Q</sup>'));
+      assert.ok(!html.includes('$$'), 'Delimiters should not leak into output');
+    });
+
+    test('normalizes malformed mismatched delimiters ($$ ... $ and $ ... $$)', () => {
+      // Mismatched opening $$ and closing $
+      const mismatched1 = 'V<sub>0</sub> $$ \\propto $ h<sup>P</sup>';
+      const html1 = formatJeeContent(mismatched1);
+      assert.ok(html1.includes('katex'), 'Should repair mismatched $$ ... $ and render KaTeX');
+      assert.ok(!html1.includes('$$'), 'Should not leave unparsed $$ delimiters');
+      assert.ok(html1.includes('∝'), 'Should render proportionality symbol');
+
+      // Mismatched opening $ and closing $$
+      const mismatched2 = 'Force $ F = ma $$ is Newton second law';
+      const html2 = formatJeeContent(mismatched2);
+      assert.ok(html2.includes('katex'), 'Should repair mismatched $ ... $$ and render KaTeX');
+      assert.ok(!html2.includes('$$'), 'Should not leave unparsed $$ delimiters');
+    });
+
+    test('gracefully repairs unclosed HTML tags without exposing raw tags or breaking DOM', () => {
+      const unclosedSup = 'Dimensions h<sup>P</sup>c<sup>Q</sup>S<sup>...';
+      const html = formatJeeContent(unclosedSup);
+      assert.ok(html.includes('<sup class="text-[0.75em] top-[-0.3em] relative font-medium">...</sup>'), 'Should close truncated <sup> tag');
+      assert.ok(!html.includes('S<sup>...'), 'Should not leave raw unclosed <sup> tag');
+
+      const unclosedSub = 'Velocity V<sub>0';
+      const htmlSub = formatJeeContent(unclosedSub);
+      assert.ok(htmlSub.includes('<sub class="text-[0.75em] bottom-[-0.2em] relative font-medium">0</sub>'));
+      assert.ok(!htmlSub.includes('V<sub>0'), 'Should not leave raw unclosed <sub> tag');
+    });
+
+    test('gracefully repairs unclosed math delimiters at end of line/string', () => {
+      const unclosedMath = 'Energy formula $$ E = mc^2';
+      const html = formatJeeContent(unclosedMath);
+      assert.ok(html.includes('katex'), 'Should repair unclosed $$ and render KaTeX');
+      assert.ok(!html.includes('$$ E = mc^2'), 'Raw unclosed markup should not be displayed');
+    });
+
+    test('preserves plain text without mathematical notation without corruption', () => {
+      const plain = 'Always check direction cosine identity: sum of squares equals one.';
+      const html = formatJeeContent(plain);
+      assert.strictEqual(html, plain, 'Plain text should remain untouched');
+    });
+
+    test('normalizes bare LaTeX symbols appearing in non-math prose into Unicode symbols', () => {
+      const bare = 'Because V \\propto T and \\Delta P = 0, \\therefore \\alpha = 1';
+      const html = formatJeeContent(bare);
+      assert.ok(html.includes('∝'), 'Should convert bare \\propto to ∝');
+      assert.ok(html.includes('Δ'), 'Should convert bare \\Delta to Δ');
+      assert.ok(html.includes('∴'), 'Should convert bare \\therefore to ∴');
+      assert.ok(html.includes('α'), 'Should convert bare \\alpha to α');
+      assert.ok(!html.includes('\\propto'), 'Should not leave raw backslash code in prose');
+    });
+
+    test('sanitizes potentially unsafe HTML input (XSS protection)', () => {
+      const dangerousScript = '<script>alert("xss")</script>Safe concept';
+      const cleanScript = formatJeeContent(dangerousScript);
+      assert.ok(!cleanScript.includes('<script'), 'Must strip script tags');
+      assert.ok(!cleanScript.includes('alert'), 'Must strip script content');
+      assert.ok(cleanScript.includes('Safe concept'), 'Must preserve safe text');
+
+      const dangerousImg = '<img src="x" onerror="alert(1)">Safe formula $x = 1$';
+      const cleanImg = formatJeeContent(dangerousImg);
+      assert.ok(!cleanImg.includes('onerror'), 'Must strip onerror handlers');
+      assert.ok(cleanImg.includes('katex'), 'Must render legitimate formula');
+
+      const dangerousIframe = '<iframe src="https://attacker.com"></iframe>Core principle';
+      const cleanIframe = formatJeeContent(dangerousIframe);
+      assert.ok(!cleanIframe.includes('<iframe'), 'Must strip iframe tags');
+      assert.ok(cleanIframe.includes('Core principle'));
+
+      const dangerousProtocol = '<a href="javascript:alert(1)">Click</a>';
+      const cleanProtocol = formatJeeContent(dangerousProtocol);
+      assert.ok(!cleanProtocol.includes('javascript:'), 'Must disarm javascript: URIs');
+    });
+
+    test('REGRESSION: reproduces and fixes the exact Smart Revision Note bug', () => {
+      // The exact broken output from the issue report:
+      const bugInput = 'V<sub>0</sub> $$ \\propto $ h<sup>P</sup>c<sup>Q</sup>G<sup>R</sup>S<sup>...';
+      const html = formatJeeContent(bugInput);
+
+      // Must be rendered with KaTeX
+      assert.ok(html.includes('katex'), 'Proportionality formula must be rendered via KaTeX');
+      assert.ok(html.includes('∝'), 'Proportionality symbol ∝ must be present');
+      // Must not display raw <sub> or <sup> tags
+      assert.ok(!html.includes('<sub>0</sub>'), 'Raw <sub> tag must not be displayed');
+      assert.ok(!html.includes('<sup>P</sup>'), 'Raw <sup> tag must not be displayed');
+      assert.ok(!html.includes('<sup>...'), 'Unclosed truncated <sup> tag must not leak');
+      // Must contain styled subscripts and superscripts
+      assert.ok(html.includes('<sub class="text-[0.75em] bottom-[-0.2em] relative font-medium">0</sub>'));
+      assert.ok(html.includes('<sup class="text-[0.75em] top-[-0.3em] relative font-medium">P</sup>'));
+      assert.ok(html.includes('<sup class="text-[0.75em] top-[-0.3em] relative font-medium">Q</sup>'));
+      assert.ok(html.includes('<sup class="text-[0.75em] top-[-0.3em] relative font-medium">R</sup>'));
+      assert.ok(html.includes('<sup class="text-[0.75em] top-[-0.3em] relative font-medium">...</sup>'));
+      // Must not leak unparsed delimiters or raw LaTeX code outside KaTeX
+      assert.ok(!html.includes('$$'), 'Raw $$ must not leak into output');
+      assert.ok(!html.includes('$$ \\propto'), 'Raw $$ \\propto must not leak into output');
+    });
+  });
 });

@@ -93,7 +93,243 @@ function cleanLatex(latex: string): string {
   cleaned = cleaned.replace(/\\ge(?![a-zA-Z])/g, '\\geq ');
   cleaned = cleaned.replace(/\\le(?![a-zA-Z])/g, '\\leq ');
 
+  // Normalize HTML subscripts and superscripts inside LaTeX
+  cleaned = cleaned
+    .replace(/<sub>(.*?)<\/sub>/gi, '_{$1}')
+    .replace(/<sup>(.*?)<\/sup>/gi, '^{$1}');
+
   return cleaned;
+}
+
+/**
+ * Safely sanitizes input HTML, stripping dangerous tags, inline script/event handlers,
+ * and malicious javascript: protocols while strictly allowing Crackrr-compliant formatting.
+ */
+export function sanitizeJeeHtml(input: string): string {
+  if (!input) return '';
+
+  // 1. Remove dangerous blocks and their contents entirely
+  let clean = input
+    .replace(/<script\b[\s\S]*?<\/script>/gi, '')
+    .replace(/<style\b[\s\S]*?<\/style>/gi, '')
+    .replace(/<iframe\b[\s\S]*?<\/iframe>/gi, '')
+    .replace(/<object\b[\s\S]*?<\/object>/gi, '')
+    .replace(/<embed\b[\s\S]*?<\/embed>/gi, '')
+    .replace(/<form\b[\s\S]*?<\/form>/gi, '')
+    .replace(/<svg\b[\s\S]*?<\/svg>/gi, '');
+
+  // 2. Remove dangerous standalone or unclosed tags
+  clean = clean.replace(
+    /<\/?(script|style|iframe|object|embed|form|svg|link|meta|base|input|button|textarea|select)\b[^>]*>/gi,
+    ''
+  );
+
+  // 3. Remove inline event handlers (onerror, onload, onclick, etc.)
+  clean = clean.replace(/\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+
+  // 4. Disarm javascript:, vbscript:, and data: URIs in href and src
+  clean = clean.replace(
+    /(href|src)\s*=\s*(?:"\s*(?:javascript|vbscript|data\s*:\s*text\/html)[^"]*"|'\s*(?:javascript|vbscript|data\s*:\s*text\/html)[^']*'|(?:javascript|vbscript|data\s*:\s*text\/html)[^\s>]+)/gi,
+    '$1="#"'
+  );
+
+  return clean;
+}
+
+/**
+ * Balances and gracefully closes any unclosed or truncated HTML formatting tags (sub, sup, b, strong, i, em)
+ * using stack-based LIFO order to prevent DOM hierarchy corruption or raw unclosed tags from rendering.
+ */
+export function balanceFormattingTags(html: string): string {
+  if (!html) return '';
+
+  const tagRegex = /<\/?([a-zA-Z0-9]+)(?:\s+[^>]*)?>/g;
+  const formattingTags = new Set(['sub', 'sup', 'b', 'strong', 'i', 'em']);
+  const stack: string[] = [];
+  let m: RegExpExecArray | null;
+
+  while ((m = tagRegex.exec(html)) !== null) {
+    const isClose = m[0].startsWith('</');
+    const tagName = m[1].toLowerCase();
+    if (!formattingTags.has(tagName)) continue;
+
+    if (!isClose) {
+      stack.push(tagName);
+    } else {
+      const lastIdx = stack.lastIndexOf(tagName);
+      if (lastIdx !== -1) {
+        stack.splice(lastIdx, 1);
+      }
+    }
+  }
+
+  let result = html;
+  while (stack.length > 0) {
+    const unclosedTag = stack.pop();
+    result += `</${unclosedTag}>`;
+  }
+  return result;
+}
+
+/**
+ * Normalizes malformed, mismatched, and unclosed math delimiters (e.g. $$ ... $ to $$ ... $$, unclosed $$)
+ * so that KaTeX can parse the mathematical expressions without dangling delimiters or raw markup.
+ */
+export function normalizeMathDelimiters(text: string): string {
+  if (!text) return '';
+
+  let i = 0;
+  const len = text.length;
+  let out = '';
+
+  while (i < len) {
+    // 1. Check for standard LaTeX \[ ... \] display blocks
+    if (text.startsWith('\\[', i)) {
+      const closeIdx = text.indexOf('\\]', i + 2);
+      if (closeIdx !== -1) {
+        out += text.slice(i, closeIdx + 2);
+        i = closeIdx + 2;
+        continue;
+      }
+    }
+
+    // 2. Check for standard LaTeX \( ... \) inline blocks
+    if (text.startsWith('\\(', i)) {
+      const closeIdx = text.indexOf('\\)', i + 2);
+      if (closeIdx !== -1) {
+        out += text.slice(i, closeIdx + 2);
+        i = closeIdx + 2;
+        continue;
+      }
+    }
+
+    // 3. Check for display math starting with $$
+    if (text.startsWith('$$', i)) {
+      let closeIdx = -1;
+      let closeLen = 0;
+      let j = i + 2;
+
+      // Look for closing $$
+      while (j < len) {
+        if (text.startsWith('$$', j)) {
+          closeIdx = j;
+          closeLen = 2;
+          break;
+        } else if (text[j] === '\n' && j + 1 < len && text[j + 1] === '\n') {
+          // Double newline breaks display block
+          break;
+        }
+        j++;
+      }
+
+      // If no closing $$, look for mismatched single $
+      if (closeIdx === -1) {
+        j = i + 2;
+        while (j < len) {
+          if (text[j] === '$' && (j + 1 >= len || text[j + 1] !== '$')) {
+            closeIdx = j;
+            closeLen = 1;
+            break;
+          } else if (text[j] === '\n' && j + 1 < len && text[j + 1] === '\n') {
+            break;
+          }
+          j++;
+        }
+      }
+
+      if (closeIdx !== -1) {
+        out += '$$' + text.slice(i + 2, closeIdx) + '$$';
+        i = closeIdx + closeLen;
+        continue;
+      } else {
+        // Unclosed $$ before end of text/block: close it gracefully
+        out += '$$' + text.slice(i + 2) + '$$';
+        i = len;
+        continue;
+      }
+    }
+
+    // 4. Check for inline math starting with single $
+    if (text[i] === '$') {
+      if (i > 0 && text[i - 1] === '\\') {
+        out += '$';
+        i++;
+        continue;
+      }
+
+      let closeIdx = -1;
+      let closeLen = 0;
+      let j = i + 1;
+
+      while (j < len) {
+        if (text.startsWith('$$', j)) {
+          // Mismatched closing $$
+          closeIdx = j;
+          closeLen = 2;
+          break;
+        } else if (text[j] === '$') {
+          closeIdx = j;
+          closeLen = 1;
+          break;
+        } else if (text[j] === '\n') {
+          break;
+        }
+        j++;
+      }
+
+      if (closeIdx !== -1) {
+        out += '$' + text.slice(i + 1, closeIdx) + '$';
+        i = closeIdx + closeLen;
+        continue;
+      }
+    }
+
+    out += text[i];
+    i++;
+  }
+
+  return out;
+}
+
+/**
+ * Normalizes common bare LaTeX mathematical symbols appearing in non-math text into their
+ * standard Unicode representations so they render as readable symbols rather than raw code.
+ */
+export function normalizeBareLatexSymbols(text: string): string {
+  const map: Record<string, string> = {
+    '\\propto': '∝',
+    '\\therefore': '∴',
+    '\\because': '∵',
+    '\\approx': '≈',
+    '\\neq': '≠',
+    '\\ne': '≠',
+    '\\geq': '≥',
+    '\\ge': '≥',
+    '\\leq': '≤',
+    '\\le': '≤',
+    '\\pm': '±',
+    '\\times': '×',
+    '\\div': '÷',
+    '\\cdot': '·',
+    '\\Rightarrow': '⇒',
+    '\\rightarrow': '→',
+    '\\Delta': 'Δ',
+    '\\Omega': 'Ω',
+    '\\mu': 'μ',
+    '\\alpha': 'α',
+    '\\beta': 'β',
+    '\\gamma': 'γ',
+    '\\theta': 'θ',
+    '\\lambda': 'λ',
+    '\\pi': 'π',
+    '\\omega': 'ω',
+  };
+
+  let result = text;
+  for (const [k, v] of Object.entries(map)) {
+    result = result.replace(new RegExp(k.replace(/\\/g, '\\\\') + '(?![a-zA-Z])', 'g'), v);
+  }
+  return result;
 }
 
 /**
@@ -282,12 +518,24 @@ function preprocessJeeDiagrams(raw: string): string {
 export function formatJeeContent(raw: string): string {
   if (!raw) return '';
 
-  // 1. Mask Math Blocks into tokens first to protect TeX formulas from text splitting!
+  const cached = mathHtmlCache.get(raw);
+  if (cached) return cached;
+
+  // 1. Sanitize raw HTML from dangerous scripts, unauthorized tags, and malicious event handlers
+  const sanitized = sanitizeJeeHtml(raw);
+
+  // 2. Normalize malformed / mismatched delimiters ($$ ... $ to $$ ... $$, unclosed $$, etc.)
+  const normalizedDelims = normalizeMathDelimiters(sanitized);
+
+  // 3. Balance and close open/truncated HTML formatting tags (sub, sup, b, strong, i, em)
+  const balanced = balanceFormattingTags(normalizedDelims);
+
+  // 4. Mask Math Blocks into tokens first to protect TeX formulas from text splitting!
   const mathRegex = /(\$\$[\s\S]*?\$\$|\$[^\$\n]+?\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\))/g;
   const mathTokens: Array<{ tokenId: string; rendered: string }> = [];
   let tokenCounter = 0;
 
-  const textWithTokens = raw.replace(mathRegex, (match) => {
+  const textWithTokens = balanced.replace(mathRegex, (match) => {
     const tokenId = `__MATH_TOKEN_${tokenCounter++}__`;
     let isBlock = false;
     let mathContent = '';
@@ -306,25 +554,26 @@ export function formatJeeContent(raw: string): string {
       mathContent = match.slice(2, -2);
     }
 
-    mathContent = mathContent
-      .replace(/<sub>(.*?)<\/sub>/gi, '_{$1}')
-      .replace(/<sup>(.*?)<\/sup>/gi, '^{$1}');
-
     const rendered = renderKatexToString(mathContent, isBlock);
     mathTokens.push({ tokenId, rendered });
     return tokenId;
   });
 
-  // 2. Preprocess non-math text for diagrams, tables & lists
-  const processedDiagrams = preprocessJeeDiagrams(textWithTokens);
+  // 5. Convert bare LaTeX math symbols in non-math text to standard Unicode symbols
+  const textWithSymbols = normalizeBareLatexSymbols(textWithTokens);
+
+  // 6. Preprocess non-math text for diagrams, tables & lists
+  const processedDiagrams = preprocessJeeDiagrams(textWithSymbols);
   const processedText = preprocessJeeTablesAndLists(processedDiagrams)
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/&nbsp;/gi, ' ');
 
-  // 3. Format HTML tags in non-table text
+  // 7. Format safe HTML tags in non-table text
   let formatted = processedText
-    .replace(/<sub>(.*?)<\/sub>/gi, '<sub class="text-[0.75em] bottom-[-0.2em] relative">$1</sub>')
-    .replace(/<sup>(.*?)<\/sup>/gi, '<sup class="text-[0.75em] top-[-0.3em] relative">$1</sup>')
+    .replace(/<sub[^>]*>\s*<\/sub>/gi, '')
+    .replace(/<sup[^>]*>\s*<\/sup>/gi, '')
+    .replace(/<sub>(.*?)<\/sub>/gi, '<sub class="text-[0.75em] bottom-[-0.2em] relative font-medium">$1</sub>')
+    .replace(/<sup>(.*?)<\/sup>/gi, '<sup class="text-[0.75em] top-[-0.3em] relative font-medium">$1</sup>')
     .replace(/<b>(.*?)<\/b>/gi, '<strong class="font-semibold text-white">$1</strong>')
     .replace(/<strong>(.*?)<\/strong>/gi, '<strong class="font-semibold text-white">$1</strong>')
     .replace(/<i>(.*?)<\/i>/gi, '<em class="italic">$1</em>')
@@ -339,7 +588,7 @@ export function formatJeeContent(raw: string): string {
 
   formatted = finalParts.join('');
 
-  // 4. Restore math tokens
+  // 8. Restore math tokens
   for (const { tokenId, rendered } of mathTokens) {
     formatted = formatted.replace(tokenId, rendered);
   }
