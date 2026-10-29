@@ -468,109 +468,139 @@ export async function submitPracticeAnswer(params: {
     qIdx >= 0 ? Math.min(session.questionIds.length - 1, qIdx + 1) : session.currentQuestionIndex;
 
   // Atomic database transaction with unique constraint protection
-  const { newTotalXp, newLevel, leveledUp, streak } = await prisma.$transaction(async (tx) => {
-    // Fetch fresh profile state inside transaction
-    const currentProfile = await tx.userProfile.findUniqueOrThrow({
-      where: { id: profile.id },
-      select: {
-        xp: true,
-        level: true,
-        currentStreak: true,
-        longestStreak: true,
-        lastPracticeAt: true,
-        questionsAnswered: true,
-        questionsCorrect: true,
-      },
-    });
+  let txResult: { newTotalXp: number; newLevel: number; leveledUp: boolean; streak: number };
+  try {
+    txResult = await prisma.$transaction(async (tx) => {
+      // Fetch fresh profile state inside transaction
+      const currentProfile = await tx.userProfile.findUniqueOrThrow({
+        where: { id: profile.id },
+        select: {
+          xp: true,
+          level: true,
+          currentStreak: true,
+          longestStreak: true,
+          lastPracticeAt: true,
+          questionsAnswered: true,
+          questionsCorrect: true,
+        },
+      });
 
-    // Floor total XP at 0 so negative XP never produces a negative total balance
-    const totalXp = Math.max(0, currentProfile.xp + xpAmount);
-    const { level: calculatedLevel } = calculateLevel(totalXp);
-    const didLevelUp = calculatedLevel > currentProfile.level;
+      // Floor total XP at 0 so negative XP never produces a negative total balance
+      const totalXp = Math.max(0, currentProfile.xp + xpAmount);
+      const { level: calculatedLevel } = calculateLevel(totalXp);
+      const didLevelUp = calculatedLevel > currentProfile.level;
 
-    // Calculate Streak
-    let currentStreak = currentProfile.currentStreak;
-    let longestStreak = currentProfile.longestStreak;
+      // Calculate Streak
+      let currentStreak = currentProfile.currentStreak;
+      let longestStreak = currentProfile.longestStreak;
 
-    if (!currentProfile.lastPracticeAt) {
-      currentStreak = 1;
-    } else {
-      const lastDate = new Date(currentProfile.lastPracticeAt);
-      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const startOfLast = new Date(lastDate.getFullYear(), lastDate.getMonth(), lastDate.getDate());
-
-      const diffDays = Math.round(
-        (startOfToday.getTime() - startOfLast.getTime()) / (1000 * 60 * 60 * 24)
-      );
-
-      if (diffDays === 0) {
-        // Already practiced today, keep current streak
-      } else if (diffDays === 1) {
-        currentStreak += 1;
-      } else {
+      if (!currentProfile.lastPracticeAt) {
         currentStreak = 1;
+      } else {
+        const lastDate = new Date(currentProfile.lastPracticeAt);
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const startOfLast = new Date(lastDate.getFullYear(), lastDate.getMonth(), lastDate.getDate());
+
+        const diffDays = Math.round(
+          (startOfToday.getTime() - startOfLast.getTime()) / (1000 * 60 * 60 * 24)
+        );
+
+        if (diffDays === 0) {
+          // Already practiced today, keep current streak
+        } else if (diffDays === 1) {
+          currentStreak += 1;
+        } else {
+          currentStreak = 1;
+        }
+      }
+
+      longestStreak = Math.max(longestStreak, currentStreak);
+
+      const txReason = isCorrect
+        ? 'QUESTION_CORRECT'
+        : xpAmount > 0
+          ? 'QUESTION_WRONG_ATTEMPT'
+          : xpAmount === 0
+            ? 'QUESTION_WRONG'
+            : 'QUESTION_WRONG_PENALTY';
+
+      // Parallelize writes inside transaction connection
+      await Promise.all([
+        tx.quizAnswer.create({
+          data: {
+            sessionId,
+            userId: profile.id,
+            questionId,
+            selectedOption,
+            isCorrect,
+            timeTakenSeconds,
+          },
+        }),
+        tx.xPTransaction.create({
+          data: {
+            userId: profile.id,
+            amount: xpAmount,
+            reason: txReason,
+            sessionId,
+          },
+        }),
+        tx.userProfile.update({
+          where: { id: profile.id },
+          data: {
+            questionsAnswered: currentProfile.questionsAnswered + 1,
+            questionsCorrect: isCorrect ? currentProfile.questionsCorrect + 1 : currentProfile.questionsCorrect,
+            xp: totalXp,
+            level: calculatedLevel,
+            currentStreak,
+            longestStreak,
+            lastPracticeAt: now,
+          },
+        }),
+        tx.quizSession.update({
+          where: { id: sessionId },
+          data: {
+            currentQuestionIndex: nextQuestionIndex,
+            durationSeconds: session.durationSeconds + timeTakenSeconds,
+            lastActivityAt: now,
+          },
+        }),
+      ]);
+
+      return {
+        newTotalXp: totalXp,
+        newLevel: calculatedLevel,
+        leveledUp: didLevelUp,
+        streak: currentStreak,
+      };
+    });
+  } catch (error: unknown) {
+    const prismaErr = error as { code?: string; message?: string };
+    if (prismaErr?.code === 'P2002' || (prismaErr?.message && prismaErr.message.includes('Unique constraint'))) {
+      // Concurrent race condition: another concurrent request already recorded the answer.
+      // Re-read existing answer and return cleanly without duplicate XP or unhandled 500 error.
+      const freshExisting = await prisma.quizAnswer.findFirst({
+        where: { sessionId, questionId },
+        include: { question: true },
+      });
+      if (freshExisting && freshExisting.question) {
+        const freshProfile = await prisma.userProfile.findUniqueOrThrow({ where: { id: profile.id } });
+        return {
+          isCorrect: freshExisting.isCorrect,
+          correctOption: freshExisting.question.correctOption,
+          explanation: freshExisting.question.explanation,
+          topic: freshExisting.question.topic || freshExisting.question.chapter,
+          chapter: freshExisting.question.chapter,
+          subject: freshExisting.question.subject,
+          xpEarned: calculateAnswerXp(freshExisting.isCorrect, freshProfile.level),
+          newTotalXp: freshProfile.xp,
+          newLevel: freshProfile.level,
+          leveledUp: false,
+          streak: freshProfile.currentStreak,
+        };
       }
     }
-
-    longestStreak = Math.max(longestStreak, currentStreak);
-
-    const txReason = isCorrect
-      ? 'QUESTION_CORRECT'
-      : xpAmount > 0
-        ? 'QUESTION_WRONG_ATTEMPT'
-        : xpAmount === 0
-          ? 'QUESTION_WRONG'
-          : 'QUESTION_WRONG_PENALTY';
-
-    // Parallelize writes inside transaction connection
-    await Promise.all([
-      tx.quizAnswer.create({
-        data: {
-          sessionId,
-          userId: profile.id,
-          questionId,
-          selectedOption,
-          isCorrect,
-          timeTakenSeconds,
-        },
-      }),
-      tx.xPTransaction.create({
-        data: {
-          userId: profile.id,
-          amount: xpAmount,
-          reason: txReason,
-          sessionId,
-        },
-      }),
-      tx.userProfile.update({
-        where: { id: profile.id },
-        data: {
-          questionsAnswered: currentProfile.questionsAnswered + 1,
-          questionsCorrect: isCorrect ? currentProfile.questionsCorrect + 1 : currentProfile.questionsCorrect,
-          xp: totalXp,
-          level: calculatedLevel,
-          currentStreak,
-          longestStreak,
-          lastPracticeAt: now,
-        },
-      }),
-      tx.quizSession.update({
-        where: { id: sessionId },
-        data: {
-          currentQuestionIndex: nextQuestionIndex,
-          durationSeconds: session.durationSeconds + timeTakenSeconds,
-          lastActivityAt: now,
-        },
-      }),
-    ]);
-
-    return {
-      newTotalXp: totalXp,
-      newLevel: calculatedLevel,
-      leveledUp: didLevelUp,
-      streak: currentStreak,
-    };
-  });
+    throw error;
+  }
 
   return {
     isCorrect,
@@ -580,10 +610,10 @@ export async function submitPracticeAnswer(params: {
     chapter: question.chapter,
     subject: question.subject,
     xpEarned: xpAmount,
-    newTotalXp,
-    newLevel,
-    leveledUp,
-    streak,
+    newTotalXp: txResult.newTotalXp,
+    newLevel: txResult.newLevel,
+    leveledUp: txResult.leveledUp,
+    streak: txResult.streak,
   };
 }
 
