@@ -2,6 +2,7 @@
 
 import { requireAuthenticatedUser } from '@/lib/server/auth';
 import { prisma } from '@/lib/server/db';
+import { toServerActionError } from '@/lib/server/db/resilience';
 import { Stream } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { clerkClient } from '@clerk/nextjs/server';
@@ -19,12 +20,12 @@ export async function updateSettingsAction(data: UpdateSettingsInput) {
   try {
     const auth = await requireAuthenticatedUser();
 
-    const name = data.name.trim();
+    const name = typeof data?.name === 'string' ? data.name.trim() : '';
     if (!name || name.length < 2) {
       return { success: false, error: 'Full name must be at least 2 characters.' };
     }
 
-    const school = data.school.trim();
+    const school = typeof data?.school === 'string' ? data.school.trim() : '';
     if (!school) {
       return { success: false, error: 'School / Institution cannot be empty.' };
     }
@@ -60,10 +61,7 @@ export async function updateSettingsAction(data: UpdateSettingsInput) {
     return { success: true };
   } catch (error) {
     console.error('Error updating settings:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to update settings.',
-    };
+    return toServerActionError(error, 'Failed to update settings.');
   }
 }
 
@@ -94,9 +92,6 @@ export async function deleteAccountAction(confirmationText: string) {
     return { success: true };
   } catch (error) {
     console.error('Error deleting account:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to delete account.',
-    };
+    return toServerActionError(error, 'Failed to delete account.');
   }
 }

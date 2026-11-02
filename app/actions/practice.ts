@@ -15,43 +15,46 @@ import {
   ActiveSessionSummaryItem,
 } from '@/lib/server/practice/service';
 import { QuestionSubject, OptionLabel } from '@prisma/client';
+import { toServerActionError } from '@/lib/server/db/resilience';
 
-export async function getActiveSessionsAction(): Promise<{
+export type PracticeActionResponse<T = void> = {
   success: boolean;
-  data?: ActiveSessionSummaryItem[];
+  data?: T;
   error?: string;
-}> {
+  code?: string;
+  retryable?: boolean;
+};
+
+export async function getActiveSessionsAction(): Promise<
+  PracticeActionResponse<ActiveSessionSummaryItem[]>
+> {
   try {
     const data = await getActivePracticeSessions();
     return { success: true, data };
   } catch (err) {
-    return { success: false, error: (err as Error).message };
+    return toServerActionError(err, 'Failed to load active sessions');
   }
 }
 
-export async function getSessionByIdAction(sessionId: string): Promise<{
-  success: boolean;
-  data?: ActiveSessionState | null;
-  error?: string;
-}> {
+export async function getSessionByIdAction(
+  sessionId: string
+): Promise<PracticeActionResponse<ActiveSessionState | null>> {
   try {
     const data = await getPracticeSessionById(sessionId);
     return { success: true, data };
   } catch (err) {
-    return { success: false, error: (err as Error).message };
+    return toServerActionError(err, 'Failed to load practice session');
   }
 }
 
-export async function getActiveSessionAction(): Promise<{
-  success: boolean;
-  data?: ActiveSessionState | null;
-  error?: string;
-}> {
+export async function getActiveSessionAction(): Promise<
+  PracticeActionResponse<ActiveSessionState | null>
+> {
   try {
     const data = await getActivePracticeSession();
     return { success: true, data };
   } catch (err) {
-    return { success: false, error: (err as Error).message };
+    return toServerActionError(err, 'Failed to load active practice session');
   }
 }
 
@@ -61,12 +64,12 @@ export async function startPracticeAction(params: {
   topic?: string;
   difficulty?: string;
   questionCount?: number;
-}): Promise<{ success: boolean; data?: StartPracticeResult; error?: string }> {
+}): Promise<PracticeActionResponse<StartPracticeResult>> {
   try {
     const data = await startPracticeSession(params);
     return { success: true, data };
   } catch (err) {
-    return { success: false, error: (err as Error).message };
+    return toServerActionError(err, 'Failed to start practice session');
   }
 }
 
@@ -75,34 +78,34 @@ export async function submitAnswerAction(params: {
   questionId: string;
   selectedOption: OptionLabel;
   timeTakenSeconds?: number;
-}): Promise<{ success: boolean; data?: AnswerSubmissionResult; error?: string }> {
+}): Promise<PracticeActionResponse<AnswerSubmissionResult>> {
   try {
     const data = await submitPracticeAnswer(params);
     return { success: true, data };
   } catch (err) {
-    return { success: false, error: (err as Error).message };
+    return toServerActionError(err, 'Failed to submit practice answer');
   }
 }
 
 export async function completeSessionAction(params: {
   sessionId: string;
   durationSeconds: number;
-}): Promise<{ success: boolean; data?: PracticeSessionSummary; error?: string }> {
+}): Promise<PracticeActionResponse<PracticeSessionSummary>> {
   try {
     const data = await completePracticeSession(params);
     return { success: true, data };
   } catch (err) {
-    return { success: false, error: (err as Error).message };
+    return toServerActionError(err, 'Failed to complete practice session');
   }
 }
 
 export async function abandonSessionAction(params: {
   sessionId: string;
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<PracticeActionResponse> {
   try {
     await abandonPracticeSession(params);
     return { success: true };
   } catch (err) {
-    return { success: false, error: (err as Error).message };
+    return toServerActionError(err, 'Failed to abandon practice session');
   }
 }

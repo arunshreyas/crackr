@@ -11,6 +11,7 @@ import {
   FileText,
   Lightbulb,
   CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
 
 interface SaveNoteModalProps {
@@ -125,8 +126,19 @@ export function SaveNoteModal({
         </div>
 
         {error && (
-          <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
-            {error}
+          <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={(e) => handleSave(e)}
+              className="text-red-300 underline hover:text-white font-medium cursor-pointer ml-3 shrink-0"
+            >
+              Retry
+            </button>
           </div>
         )}
 
@@ -213,6 +225,8 @@ export function SaveNoteModal({
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>Saved!</span>
                 </>
+              ) : error ? (
+                <span>Retry Save</span>
               ) : (
                 <span>Save Note</span>
               )}

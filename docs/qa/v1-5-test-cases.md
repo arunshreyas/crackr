@@ -98,10 +98,36 @@ This test-case matrix covers the authoritative verification of core JEE preparat
 
 ---
 
+### F. Database Resilience & Network Failure Handling
+
+| Test ID | Feature | Preconditions | Test Steps | Expected Result | Priority | Automation Status |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **RESIL-01** | Profile Lookup Network Failure | Network socket drop (`read EADDRNOTAVAIL` / `ECONNREFUSED`) during profile query. | Call `getAuthenticatedUser()` while DB socket is down. | Throws `DatabaseUnavailableError` (`code: DATABASE_UNAVAILABLE`, `retryable: true`). Never treats user as unauthenticated (`null`) or creates duplicate accounts. | P0 | Automated (`tests/regression/prisma-network-failure.test.ts`) |
+| **RESIL-02** | Save Note Network Interruption | Network disconnect during note upsert. | Call `saveNoteAction()` with valid note payload during socket outage. | Returns `{ success: false, code: 'DATABASE_UNAVAILABLE', retryable: true }`. Internal Prisma invocation stack and connection strings are fully sanitized. | P0 | Automated (`tests/regression/prisma-network-failure.test.ts`) |
+| **RESIL-03** | Answer Submit Network Interruption | Connection terminated during atomic transaction. | Call `submitAnswerAction()` during transient network drop. | Returns structured error with `code: 'DATABASE_UNAVAILABLE'` and `retryable: true`. | P0 | Automated (`tests/regression/prisma-network-failure.test.ts`) |
+| **RESIL-04** | Automatic Transient Recovery | Network blip on initial attempt, recovered on attempt 2. | Run `withDatabaseRetry()` over a transient failing operation. | Bounded retry automatically recovers upon socket re-establishment and returns successful payload without surfacing error. | P0 | Automated (`tests/regression/prisma-network-failure.test.ts`) |
+| **RESIL-05** | Bounded Retry Exhaustion | Persistent network outage exceeding `maxRetries`. | Run `withDatabaseRetry()` with `maxRetries: 2`. | Executes exactly 3 attempts (1 initial + 2 retries) with exponential backoff & jitter, then halts and throws `DatabaseUnavailableError`. | P0 | Automated (`tests/regression/prisma-network-failure.test.ts`) |
+| **RESIL-06** | Idempotent Submission Recovery | User or client retries answer submission after network failure. | Call `submitAnswerAction()` with same session & question ID. | Server detects existing answer via unique index, returns answer details idempotently, and never creates duplicate `QuizAnswer` rows. | P0 | Automated (`tests/regression/prisma-network-failure.test.ts`) |
+| **RESIL-07** | XP & Streak Counter Invariants | Repeated retries of answer submission. | Check `XPTransaction` records and `userProfile.questionsAnswered`. | Exactly 1 `XPTransaction` is recorded. `questionsAnswered` and total XP are incremented exactly once. | P0 | Automated (`tests/regression/prisma-network-failure.test.ts`) |
+| **RESIL-08** | Auth vs Outage Distinguishability | Unauthenticated user (`userId = null`) vs authenticated user with DB outage. | Compare responses of unauthenticated request vs database outage. | Unauthenticated yields `code: 'UNAUTHORIZED'` (`retryable: false`). Database outage yields `code: 'DATABASE_UNAVAILABLE'` (`retryable: true`). Strictly mutually exclusive. | P0 | Automated (`tests/regression/prisma-network-failure.test.ts`) |
+| **RESIL-09** | User Input Preservation on Failure | Network failure during note save in UI / Server Action. | 1. Call `saveNoteAction(input)` during outage.<br>2. Inspect `input` payload.<br>3. Retry with same payload when DB is up. | User input (`userNote`, `tags`, `keyTakeaway`) is completely preserved and not cleared. Subsequent retry persists cleanly to PostgreSQL. | P0 | Automated (`tests/regression/prisma-network-failure.test.ts`) |
+
+---
+
+### G. Form Data Validation & Practice Session Concurrency
+
+| Test ID | Feature | Preconditions | Test Steps | Expected Result | Priority | Automation Status |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **FORM-01** | Empty / Malformed / Stale Form Data Rejection | Authenticated user submits empty, whitespace, out-of-range, or stale inputs across forms (Notes, Settings, Revision, Practice, Onboarding). | 1. Submit empty/whitespace `questionId` to Notes form.<br>2. Submit non-existent `questionId` or stale `noteId`.<br>3. Submit empty name, empty school, invalid stream, or out-of-range dailyGoal to Settings form.<br>4. Submit empty `conceptKey` or invalid review status.<br>5. Submit invalid option label or question mismatch to Practice.<br>6. Submit taken username or < 3 chars to Onboarding. | Useful, user-facing error message is returned for all cases. Zero unintended rows created in PostgreSQL (`RevisionNote`, `RevisionRecord`, `QuizAnswer`). Target profiles and existing rows remain completely unmutated. | P0 | Automated (`tests/regression/form-validation-and-concurrent-tabs.test.ts`) |
+| **CONCURR-01** | Two-Tab Simultaneous Practice Submission | User opens the same active practice session on the same question across Tab 1 and Tab 2. | Submit answers from Tab 1 and Tab 2 simultaneously via `Promise.all`. | Both tabs resolve sensibly with answer evaluation, exactly one `QuizAnswer` row and one `XPTransaction` row are inserted in PostgreSQL, and user `questionsAnswered` and XP are incremented exactly once without 500 race-condition failures. | P0 | Automated (`tests/regression/form-validation-and-concurrent-tabs.test.ts`) |
+| **CONCURR-02** | Stale Tab Practice Submission Recovery | User opens practice session in two tabs. Tab 1 submits answer or finishes session, leaving Tab 2 stale. | 1. Tab 1 submits question 1. Tab 2 on question 1 submits afterwards.<br>2. Tab 1 completes entire session. Tab 2 on stale question submits. | 1. Tab 2 receives already recorded answer idempotently with explanation and zero extra XP.<br>2. Late submission to completed session returns clear `SESSION_COMPLETED` error without writing orphan answers. | P0 | Automated (`tests/regression/form-validation-and-concurrent-tabs.test.ts`) |
+
+---
+
 ## 3. Automation Coverage Summary
 
-- **Total Test Cases Specified:** 38
-- **P0 Test Cases:** 24 (100% Automated)
+- **Total Test Cases Specified:** 50
+- **P0 Test Cases:** 36 (100% Automated)
 - **P1 Test Cases:** 12 (100% Automated)
 - **P2 Test Cases:** 2 (100% Automated)
 - **Automated Test Suites (100% Verified on Disk):**
@@ -115,10 +141,13 @@ This test-case matrix covers the authoritative verification of core JEE preparat
     - `payload-validation.test.ts` (Route guards & field constraint validation)
     - `practice-markup.test.ts` (AST verification preventing nested button hydration errors)
   - `tests/regression/`:
+    - `form-validation-and-concurrent-tabs.test.ts` (FORM-01 empty/malformed/stale form rejection across 7 areas, CONCURR-01 two-tab simultaneous submission idempotency, CONCURR-02 stale tab recovery)
+    - `prisma-network-failure.test.ts` (RESIL-01 to RESIL-09 network failure handling, safe retry, and input preservation)
     - `auth-isolation.test.ts` (Multi-tenant note & revision record isolation)
     - `practice-security.test.ts` (Cross-user session check & concurrent `Promise.all` submission)
     - `notes-db.test.ts` (Note creation, idempotent upsert, cascade preservation)
     - `weak-concept-db.test.ts` (Multi-tenant attempt scoping and diagnosis isolation)
     - `revision-queue.test.ts` (Queue construction, priority ordering & concurrent review idempotency)
     - `cross-feature-integration.test.ts` (Full practice -> weakness -> note -> revision loop)
+    - `smart-notes-math-regression.test.ts` (MathRenderer key takeaway and formula rendering invariants)
   - `scripts/`: System verification scripts (`test-smart-revision`, `test-smart-notes`, `test-weak-concept-full`, `test-practice-resume`, `test-daily-rewards-xp-scaling`, `test-ranks-leaderboard`, `test-dashboard-mobile-nav`, `test-dashboard`).

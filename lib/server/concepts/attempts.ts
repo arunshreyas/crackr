@@ -1,5 +1,6 @@
 import 'server-only';
 import { prisma } from '@/lib/server/db';
+import { withDatabaseRetry } from '@/lib/server/db/resilience';
 import { QuestionSubject } from '@prisma/client';
 import { buildConceptKey, normalizeTopicName } from './metadata';
 
@@ -36,25 +37,27 @@ export async function getUserConceptAttempts(userId: string): Promise<ConceptAtt
     throw new Error('UNAUTHORIZED: userId is required for attempt tracking');
   }
 
-  const answers = await prisma.quizAnswer.findMany({
-    where: { userId },
-    select: {
-      id: true,
-      isCorrect: true,
-      timeTakenSeconds: true,
-      createdAt: true,
-      question: {
-        select: {
-          id: true,
-          subject: true,
-          chapter: true,
-          topic: true,
-          difficulty: true,
+  const answers = await withDatabaseRetry(() =>
+    prisma.quizAnswer.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        isCorrect: true,
+        timeTakenSeconds: true,
+        createdAt: true,
+        question: {
+          select: {
+            id: true,
+            subject: true,
+            chapter: true,
+            topic: true,
+            difficulty: true,
+          },
         },
       },
-    },
-    orderBy: { createdAt: 'asc' },
-  });
+      orderBy: { createdAt: 'asc' },
+    })
+  );
 
   const groupMap = new Map<
     string,

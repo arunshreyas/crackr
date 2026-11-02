@@ -6,6 +6,7 @@ import { getUserConceptDiagnostics, AnalyzedConcept } from '@/lib/server/concept
 import { RevisionItem, RevisionIncorrectQuestion, RevisionLinkedNote } from './types';
 import { calculateRevisionPriority } from './prioritization';
 import { isItemDueForReview } from './scheduling';
+import { withDatabaseRetry } from '@/lib/server/db/resilience';
 
 export interface GetRevisionQueueFilters {
   subject?: QuestionSubject | 'ALL';
@@ -30,53 +31,55 @@ export async function getUserRevisionQueue(
   const now = new Date();
 
   // 1. Fetch practice diagnostics, incorrect answers, saved notes, and revision records concurrently
-  const [diagnosticsResult, incorrectAnswers, savedNotes, revisionRecords] = await Promise.all([
-    getUserConceptDiagnostics(userId).catch(() => null),
-    prisma.quizAnswer.findMany({
-      where: { userId, isCorrect: false },
-      include: {
-        question: {
-          select: {
-            id: true,
-            text: true,
-            subject: true,
-            chapter: true,
-            topic: true,
-            difficulty: true,
-            correctOption: true,
-            explanation: true,
-            options: {
-              orderBy: { position: 'asc' },
-              select: {
-                id: true,
-                label: true,
-                text: true,
-                position: true,
+  const [diagnosticsResult, incorrectAnswers, savedNotes, revisionRecords] = await withDatabaseRetry(() =>
+    Promise.all([
+      getUserConceptDiagnostics(userId).catch(() => null),
+      prisma.quizAnswer.findMany({
+        where: { userId, isCorrect: false },
+        include: {
+          question: {
+            select: {
+              id: true,
+              text: true,
+              subject: true,
+              chapter: true,
+              topic: true,
+              difficulty: true,
+              correctOption: true,
+              explanation: true,
+              options: {
+                orderBy: { position: 'asc' },
+                select: {
+                  id: true,
+                  label: true,
+                  text: true,
+                  position: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 150,
-    }),
-    prisma.revisionNote.findMany({
-      where: { userId },
-      select: {
-        id: true,
-        questionId: true,
-        conceptKey: true,
-        userNote: true,
-        tags: true,
-        keyTakeaway: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    }).catch(() => []), // Safely fallback if notes table is unavailable
-    prisma.revisionRecord.findMany({
-      where: { userId },
-    }),
-  ]);
+        orderBy: { createdAt: 'desc' },
+        take: 150,
+      }),
+      prisma.revisionNote.findMany({
+        where: { userId },
+        select: {
+          id: true,
+          questionId: true,
+          conceptKey: true,
+          userNote: true,
+          tags: true,
+          keyTakeaway: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }).catch(() => []), // Safely fallback if notes table is unavailable
+      prisma.revisionRecord.findMany({
+        where: { userId },
+      }),
+    ])
+  );
 
   // If user has zero diagnostics, zero incorrect answers, zero notes, and zero revision records:
   // Strictly return empty queue (no fabricated data)

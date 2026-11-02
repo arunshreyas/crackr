@@ -17,7 +17,7 @@ An exhaustive quality assurance audit and automated test suite verification was 
 4. **React 19 DOM Nesting Hydration Invariant**: Automated AST-based static regression test ensuring no `<button>` appears as a descendant of `<button>` in `app/practice/PracticeContainer.tsx`.
 5. **JEE Ingestion & Taxonomy Integrity**: Canonical concept key consistency and zero-attempt math safety.
 
-All **111 automated suite tests** (`test:unit`, `test:ingest`, `test:regression`), **44 system verification script steps**, ESLint, TypeScript compiler type checks, and Next.js production builds completed with **100% pass rate**, **0 failures**, and **0 skipped tests**.
+All **151 automated suite tests** (`test:unit`, `test:ingest`, `test:regression`), **44 system verification script steps**, ESLint, TypeScript compiler type checks, and Next.js production builds completed with **100% pass rate**, **0 failures**, and **0 skipped tests**.
 
 ---
 
@@ -25,11 +25,11 @@ All **111 automated suite tests** (`test:unit`, `test:ingest`, `test:regression`
 
 | Test Suite / Command | Scope / Category | Total Tests | Passed | Failed | Skipped | Exit Code | Execution Time |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `npm run lint` | ESLint rules & code style | N/A | 0 errors | 0 | 0 | 0 | 4.1s |
-| `npm run typecheck` | TypeScript compiler (`tsc --noEmit`) | N/A | 0 errors | 0 | 0 | 0 | 2.1s |
-| `npm run test:unit` | Fast unit calculation & AST markup tests | 76 | 76 | 0 | 0 | 0 | 0.6s |
+| `npm run lint` | ESLint rules & code style | N/A | 0 errors | 0 | 0 | 0 | 3.8s |
+| `npm run typecheck` | TypeScript compiler (`tsc --noEmit`) | N/A | 0 errors | 0 | 0 | 0 | 2.0s |
+| `npm run test:unit` | Fast unit calculation & AST markup tests | 87 | 87 | 0 | 0 | 0 | 0.5s |
 | `npm run test:ingest` | JEE PYQ ingestion validation | 10 | 10 | 0 | 0 | 0 | 0.1s |
-| `npm run test:regression` | Multi-tenant isolation & DB integration | 25 | 25 | 0 | 0 | 0 | 22.4s |
+| `npm run test:regression` | Multi-tenant isolation, network resilience, form validation & concurrency | 54 | 54 | 0 | 0 | 0 | 71.2s |
 | `test-smart-revision.ts` | Smart Revision system verification | 9 | 9 | 0 | 0 | 0 | 12.0s |
 | `test-smart-notes.ts` | Smart Notes & diagram pipeline | 7 | 7 | 0 | 0 | 0 | 5.2s |
 | `test-weak-concept-full.ts`| 7-Stage Weak Concept analysis | 7 | 7 | 0 | 0 | 0 | 14.0s |
@@ -37,8 +37,8 @@ All **111 automated suite tests** (`test:unit`, `test:ingest`, `test:regression`
 | `test-daily-rewards-xp.ts`| Daily rewards & level-scaled XP | 3 | 3 | 0 | 0 | 0 | 4.0s |
 | `test-ranks-leaderboard.ts`| Multi-category rank tiers | 7 | 7 | 0 | 0 | 0 | 5.0s |
 | `test-dashboard-mobile-nav`| Dashboard hero & returning users | 2 | 2 | 0 | 0 | 0 | 8.0s |
-| `npm run build` | Next.js production build (webpack) | 20 routes | 20 routes | 0 | 0 | 0 | 9.7s |
-| **TOTAL** | **Comprehensive Automated & Verification Suite**| **155** | **155** | **0** | **0** | **0** | **~1.6 min** |
+| `npm run build` | Next.js production build (webpack) | 20 routes | 20 routes | 0 | 0 | 0 | 9.8s |
+| **TOTAL** | **Comprehensive Automated & Verification Suite**| **195** | **195** | **0** | **0** | **0** | **~2.4 min** |
 
 ---
 
@@ -104,6 +104,33 @@ All **111 automated suite tests** (`test:unit`, `test:ingest`, `test:regression`
 - **Cross-Feature Integration (PRAC-10)**: Verified in `tests/regression/cross-feature-integration.test.ts`. Full cycle: practice mistake -> weak concept classification -> note save -> smart revision queue prioritization -> review action -> second user total isolation.
 - **DOM Nesting Hydration Invariant (HYD-01)**: Verified in `tests/unit/practice-markup.test.ts`. Static AST traversal of `app/practice/PracticeContainer.tsx` verifies zero `<button>` elements appear as descendants of `<button>`, completely preventing React 19 DOM nesting hydration errors.
 
+### F. Database Resilience & Network Failure Handling
+- **Profile Lookup Socket Drop (RESIL-01)**: Verified in `tests/regression/prisma-network-failure.test.ts`. Socket drops (`read EADDRNOTAVAIL` / `ECONNREFUSED`) in `getAuthenticatedUser()` throw `DatabaseUnavailableError` (`code: DATABASE_UNAVAILABLE`, `retryable: true`). Never treats user as unauthenticated (`null`) or creates duplicate user records.
+- **Save Note Interruption (RESIL-02)**: Verified in `tests/regression/prisma-network-failure.test.ts`. Disconnect during note save returns `{ success: false, code: 'DATABASE_UNAVAILABLE', retryable: true }`. Raw Prisma call traces (`prisma.`, `invocation`, TCP sockets) are stripped and sanitized.
+- **Answer Submission Interruption (RESIL-03)**: Verified in `tests/regression/prisma-network-failure.test.ts`. Socket drop during submission transaction returns clean retryable response without hanging or unhandled 500 error.
+- **Automatic Transient Recovery (RESIL-04)**: Verified in `tests/regression/prisma-network-failure.test.ts`. Operations encountering network blips on initial attempts recover automatically within `withDatabaseRetry()` bounds.
+- **Bounded Retry Exhaustion (RESIL-05)**: Verified in `tests/regression/prisma-network-failure.test.ts`. Persistent network outages halt at `maxRetries` (3 attempts total) with exponential backoff & jitter and propagate `DatabaseUnavailableError`.
+- **Idempotent Submission Recovery (RESIL-06)**: Verified in `tests/regression/prisma-network-failure.test.ts`. Retrying an answer submission after network failure retrieves the committed answer and never duplicates `QuizAnswer` rows.
+- **XP & Streak Counter Invariants (RESIL-07)**: Verified in `tests/regression/prisma-network-failure.test.ts`. Duplicate submissions never duplicate `XPTransaction` rows or increment user XP/streak multiple times.
+- **Auth vs Outage Distinguishability (RESIL-08)**: Verified in `tests/regression/prisma-network-failure.test.ts`. Unauthenticated calls yield `code: 'UNAUTHORIZED'` (`retryable: false`), whereas transient database drop yields `code: 'DATABASE_UNAVAILABLE'` (`retryable: true`). The two states are strictly mutually exclusive.
+- **User Input Preservation on Failure (RESIL-09)**: Verified in `tests/regression/prisma-network-failure.test.ts`. User notes, tags, and reflections are preserved across network drops; retrying the operation with the preserved payload succeeds without user re-typing.
+
+### G. Form Data Validation & Two-Tab Practice Concurrency
+- **Empty / Malformed / Stale Form Data Rejection (FORM-01)**: Verified in `tests/regression/form-validation-and-concurrent-tabs.test.ts`:
+  - Notes Form: Rejects empty string, whitespace-only, and non-string `questionId`; rejects non-existent question ID (`Question not found`); rejects stale/non-existent note ID on update and delete. Strictly 0 rows created or mutated in `RevisionNote`.
+  - Settings Form: Rejects empty name, empty school, invalid streams, and daily goals outside [5, 200]. Original user profile fields in PostgreSQL remain 100% untouched.
+  - Revision Review Form: Rejects empty `conceptKey` and invalid review statuses. Strictly 0 `RevisionRecord` rows created.
+  - Practice Answer Form: Rejects empty `questionId`, invalid options (e.g. `'Z'`), questions not belonging to the session, and submissions on completed sessions (`SESSION_COMPLETED`). Strictly 0 orphan answers recorded.
+  - Onboarding Form: Rejects taken usernames, usernames shorter than 3 characters, and empty required fields. Prevents profile corruption or account hijacking.
+- **Two Tabs Simultaneous Practice Submission (CONCURR-01)**: Verified in `tests/regression/form-validation-and-concurrent-tabs.test.ts`:
+  - User opens identical active session in two tabs and submits simultaneously via `Promise.all`.
+  - Atomically resolves: exactly 1 `QuizAnswer` row and exactly 1 `XPTransaction` row created.
+  - `userProfile.questionsAnswered` and XP are incremented exactly once.
+  - Both tabs receive sensible evaluated responses without race-condition 500 crashes.
+- **Stale Tab Practice Submission Recovery (CONCURR-02)**: Verified in `tests/regression/form-validation-and-concurrent-tabs.test.ts`:
+  - Tab 1 submits question 1; stale Tab 2 left open on question 1 submits afterwards: returns existing recorded answer idempotently with worked solution, without duplicate XP or errors.
+  - Tab 1 completes the entire session; stale Tab 2 submits: returns clean, structured `SESSION_COMPLETED` error without inserting extra answer records.
+
 ---
 
 ## 4. Bugs Discovered & Fixed During Audit
@@ -162,12 +189,14 @@ All **111 automated suite tests** (`test:unit`, `test:ingest`, `test:regression`
 ## 7. Release Checklist & Sign-Off
 
 - [x] All uncommitted user work preserved.
-- [x] Dedicated branch `test/v1-5-deep-audit` created from latest integration commit.
+- [x] Dedicated branch `fix/prisma-network-failure-handling` active and tested.
 - [x] ESLint passed with 0 errors and 0 warnings (`npm run lint`).
 - [x] TypeScript passed with 0 type errors (`npm run typecheck`).
-- [x] Fast unit tests passed in CI (`npm run test:unit`, 76 tests).
+- [x] Fast unit tests passed in CI (`npm run test:unit`, 87 tests).
 - [x] PYQ Ingest validation tests passed (`npm run test:ingest`, 10 tests).
-- [x] Database regression tests passed (`npm run test:regression`, 25 tests).
+- [x] Database regression tests passed (`npm run test:regression`, 54 tests).
+- [x] Form data resilience verified: Empty, malformed, or stale form data produces clear user-facing errors with zero unintended database mutations.
+- [x] Multi-tab concurrency verified: Opening same session in two tabs and submitting from both produces zero duplicate answers or XP, and both tabs recover sensibly.
 - [x] Integration scripts verified across all features (Weak Concepts, Notes, Smart Revision, Practice, Gamification).
 - [x] Next.js production build succeeded (`npm run build`, 20 routes).
 - [x] Defects fixed with regression tests committed.

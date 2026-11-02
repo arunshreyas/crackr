@@ -8,6 +8,11 @@ import {
   checkAndUnlockAchievements,
   UnlockedAchievementInfo,
 } from '@/lib/server/gamification/service';
+import {
+  withDatabaseRetry,
+  isTransientDatabaseError,
+  DatabaseUnavailableError,
+} from '@/lib/server/db/resilience';
 import { XP_CONFIG, calculateLevel, calculateAnswerXp } from '@/lib/server/gamification/config';
 
 export interface StartPracticeResult {
@@ -379,50 +384,62 @@ export async function submitPracticeAnswer(params: {
   const { profile } = await requireAuthenticatedUser();
   const { sessionId, questionId, selectedOption, timeTakenSeconds = 30 } = params;
 
-  // Fetch session, existing answer, and question concurrently
-  const [session, existingAnswer, question] = await Promise.all([
-    prisma.quizSession.findUnique({
-      where: { id: sessionId },
-      select: {
-        id: true,
-        userId: true,
-        status: true,
-        completedAt: true,
-        questionIds: true,
-        currentQuestionIndex: true,
-        durationSeconds: true,
-      },
-    }),
-    prisma.quizAnswer.findFirst({
-      where: {
-        sessionId,
-        questionId,
-      },
-      include: {
-        question: {
-          select: {
-            id: true,
-            subject: true,
-            chapter: true,
-            topic: true,
-            correctOption: true,
-            explanation: true,
+  if (!sessionId || typeof sessionId !== 'string' || !sessionId.trim()) {
+    throw new Error('INVALID_SESSION: Valid sessionId is required.');
+  }
+  if (!questionId || typeof questionId !== 'string' || !questionId.trim()) {
+    throw new Error('INVALID_QUESTION: Valid questionId is required.');
+  }
+  if (!selectedOption || !Object.values(OptionLabel).includes(selectedOption)) {
+    throw new Error('INVALID_OPTION: Selected option must be A, B, C, or D.');
+  }
+
+  // Fetch session, existing answer, and question concurrently with retry
+  const [session, existingAnswer, question] = await withDatabaseRetry(() =>
+    Promise.all([
+      prisma.quizSession.findUnique({
+        where: { id: sessionId },
+        select: {
+          id: true,
+          userId: true,
+          status: true,
+          completedAt: true,
+          questionIds: true,
+          currentQuestionIndex: true,
+          durationSeconds: true,
+        },
+      }),
+      prisma.quizAnswer.findFirst({
+        where: {
+          sessionId,
+          questionId,
+        },
+        include: {
+          question: {
+            select: {
+              id: true,
+              subject: true,
+              chapter: true,
+              topic: true,
+              correctOption: true,
+              explanation: true,
+            },
           },
         },
-      },
-    }),
-    prisma.question.findUnique({
-      where: { id: questionId },
-      select: {
-        id: true,
-        subject: true,
-        chapter: true,
-        topic: true,
-        correctOption: true,
-        explanation: true,
-      },
-    }),
-  ]);
+      }),
+      prisma.question.findUnique({
+        where: { id: questionId },
+        select: {
+          id: true,
+          subject: true,
+          chapter: true,
+          topic: true,
+          correctOption: true,
+          explanation: true,
+        },
+      }),
+    ])
+  );
 
   if (!session || session.userId !== profile.id) {
     throw new Error('FORBIDDEN: Session not found or unauthorized.');
@@ -430,6 +447,10 @@ export async function submitPracticeAnswer(params: {
 
   if (session.completedAt || session.status === SessionStatus.COMPLETED) {
     throw new Error('SESSION_COMPLETED: This session has already ended.');
+  }
+
+  if (!session.questionIds.includes(questionId)) {
+    throw new Error('INVALID_QUESTION: Question does not belong to this practice session.');
   }
 
   // Idempotent return if this question was already answered
@@ -598,6 +619,36 @@ export async function submitPracticeAnswer(params: {
           streak: freshProfile.currentStreak,
         };
       }
+    }
+
+    if (isTransientDatabaseError(error)) {
+      // Socket/TCP severed during or right after commit.
+      // Re-check if transaction already committed on PostgreSQL before throwing failure.
+      try {
+        const committedAnswer = await prisma.quizAnswer.findFirst({
+          where: { sessionId, questionId },
+          include: { question: true },
+        });
+        if (committedAnswer && committedAnswer.question) {
+          const freshProfile = await prisma.userProfile.findUnique({ where: { id: profile.id } });
+          return {
+            isCorrect: committedAnswer.isCorrect,
+            correctOption: committedAnswer.question.correctOption,
+            explanation: committedAnswer.question.explanation,
+            topic: committedAnswer.question.topic || committedAnswer.question.chapter,
+            chapter: committedAnswer.question.chapter,
+            subject: committedAnswer.question.subject,
+            xpEarned: calculateAnswerXp(committedAnswer.isCorrect, freshProfile?.level ?? profile.level),
+            newTotalXp: freshProfile?.xp ?? profile.xp,
+            newLevel: freshProfile?.level ?? profile.level,
+            leveledUp: false,
+            streak: freshProfile?.currentStreak ?? profile.currentStreak,
+          };
+        }
+      } catch {
+        // If query also fails due to outage, wrap and throw DatabaseUnavailableError below
+      }
+      throw new DatabaseUnavailableError('Database service temporarily unavailable during answer submission', error);
     }
     throw error;
   }

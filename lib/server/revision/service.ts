@@ -12,6 +12,7 @@ import {
 } from './types';
 import { getUserRevisionQueue } from './queue';
 import { calculateNextReviewDue, isItemDueForReview } from './scheduling';
+import { withDatabaseRetry } from '@/lib/server/db/resilience';
 
 /**
  * Loads the complete Smart Revision dashboard payload for an authenticated user.
@@ -354,7 +355,7 @@ export async function markConceptReviewed(input: MarkReviewedInput) {
   if (!userId) {
     throw new Error('UNAUTHORIZED: userId is required');
   }
-  if (!conceptKey || typeof conceptKey !== 'string') {
+  if (!conceptKey || typeof conceptKey !== 'string' || !conceptKey.trim()) {
     throw new Error('INVALID_INPUT: conceptKey is required');
   }
   if (!Object.values(RevisionStatus).includes(status)) {
@@ -364,57 +365,59 @@ export async function markConceptReviewed(input: MarkReviewedInput) {
   const meta = parseConceptKey(conceptKey);
   const now = new Date();
 
-  // 1. Fetch existing revision record to check review count and prevent duplicate rapid clicks
-  const existing = await prisma.revisionRecord.findUnique({
-    where: {
-      userId_conceptKey: { userId, conceptKey },
-    },
+  return withDatabaseRetry(async () => {
+    // 1. Fetch existing revision record to check review count and prevent duplicate rapid clicks
+    const existing = await prisma.revisionRecord.findUnique({
+      where: {
+        userId_conceptKey: { userId, conceptKey },
+      },
+    });
+
+    // Idempotency: If review was completed within the last 5 seconds with the same status,
+    // return existing record without double-incrementing review count
+    if (
+      existing &&
+      existing.status === status &&
+      existing.lastReviewedAt &&
+      now.getTime() - existing.lastReviewedAt.getTime() < 5000
+    ) {
+      return existing;
+    }
+
+    // Calculate new review count
+    const newReviewCount = existing ? existing.reviewCount + 1 : 1;
+
+    // Calculate next scheduled due date deterministically
+    const nextReviewDue = calculateNextReviewDue(status, newReviewCount, now);
+
+    // Upsert record atomically
+    const updated = await prisma.revisionRecord.upsert({
+      where: {
+        userId_conceptKey: { userId, conceptKey },
+      },
+      create: {
+        userId,
+        conceptKey,
+        subject: meta.subject,
+        chapter: meta.chapter,
+        topic: meta.topic,
+        status,
+        reviewCount: newReviewCount,
+        lastReviewedAt: now,
+        nextReviewDue,
+        notes: notes?.trim() || null,
+        lastFeedback: feedback?.trim() || null,
+      },
+      update: {
+        status,
+        reviewCount: newReviewCount,
+        lastReviewedAt: now,
+        nextReviewDue,
+        ...(notes !== undefined ? { notes: notes?.trim() || null } : {}),
+        ...(feedback !== undefined ? { lastFeedback: feedback?.trim() || null } : {}),
+      },
+    });
+
+    return updated;
   });
-
-  // Idempotency: If review was completed within the last 5 seconds with the same status,
-  // return existing record without double-incrementing review count
-  if (
-    existing &&
-    existing.status === status &&
-    existing.lastReviewedAt &&
-    now.getTime() - existing.lastReviewedAt.getTime() < 5000
-  ) {
-    return existing;
-  }
-
-  // Calculate new review count
-  const newReviewCount = existing ? existing.reviewCount + 1 : 1;
-
-  // Calculate next scheduled due date deterministically
-  const nextReviewDue = calculateNextReviewDue(status, newReviewCount, now);
-
-  // Upsert record atomically
-  const updated = await prisma.revisionRecord.upsert({
-    where: {
-      userId_conceptKey: { userId, conceptKey },
-    },
-    create: {
-      userId,
-      conceptKey,
-      subject: meta.subject,
-      chapter: meta.chapter,
-      topic: meta.topic,
-      status,
-      reviewCount: newReviewCount,
-      lastReviewedAt: now,
-      nextReviewDue,
-      notes: notes?.trim() || null,
-      lastFeedback: feedback?.trim() || null,
-    },
-    update: {
-      status,
-      reviewCount: newReviewCount,
-      lastReviewedAt: now,
-      nextReviewDue,
-      ...(notes !== undefined ? { notes: notes?.trim() || null } : {}),
-      ...(feedback !== undefined ? { lastFeedback: feedback?.trim() || null } : {}),
-    },
-  });
-
-  return updated;
 }

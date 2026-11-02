@@ -1,5 +1,5 @@
 import 'server-only';
-import { prisma } from '@/lib/server/db';
+import { prisma, withDatabaseRetry } from '@/lib/server/db';
 import { QuestionSubject, OptionLabel, Prisma, QuestionOption } from '@prisma/client';
 import { buildConceptKey } from '@/lib/server/concepts/metadata';
 import { getUserConceptDiagnostics, AnalyzedConcept } from '@/lib/server/concepts/analysis';
@@ -87,14 +87,18 @@ export async function saveRevisionNote(input: SaveNoteInput): Promise<EnrichedRe
   const { userId, questionId, userNote, tags = [], keyTakeaway } = input;
 
   // 1. Fetch question to retrieve official topic & explanation
-  const question = await prisma.question.findUnique({
-    where: { id: questionId },
-    include: {
-      options: {
-        orderBy: { position: 'asc' },
-      },
-    },
-  });
+  const question = await withDatabaseRetry(
+    () =>
+      prisma.question.findUnique({
+        where: { id: questionId },
+        include: {
+          options: {
+            orderBy: { position: 'asc' },
+          },
+        },
+      }),
+    { operationName: 'fetch question for note' }
+  );
 
   if (!question) {
     throw new Error('Question not found');
@@ -105,40 +109,44 @@ export async function saveRevisionNote(input: SaveNoteInput): Promise<EnrichedRe
   // 2. Derive key takeaway if none provided
   const derivedTakeaway = keyTakeaway?.trim() || deriveConceptTakeaway(question.text, question.explanation, question.chapter, question.topic);
 
-  // 3. Upsert note
-  const note = await prisma.revisionNote.upsert({
-    where: {
-      userId_questionId: {
-        userId,
-        questionId,
-      },
-    },
-    create: {
-      userId,
-      questionId,
-      userNote: userNote?.trim() || null,
-      tags: tags.map((t) => t.trim()).filter(Boolean),
-      subject: question.subject,
-      chapter: question.chapter,
-      topic: question.topic,
-      conceptKey,
-      keyTakeaway: derivedTakeaway,
-    },
-    update: {
-      ...(userNote !== undefined ? { userNote: userNote?.trim() || null } : {}),
-      ...(tags !== undefined ? { tags: tags.map((t) => t.trim()).filter(Boolean) } : {}),
-      ...(keyTakeaway !== undefined ? { keyTakeaway: derivedTakeaway } : {}),
-    },
-    include: {
-      question: {
-        include: {
-          options: {
-            orderBy: { position: 'asc' },
+  // 3. Upsert note (idempotent, safe to retry on transient connection failures)
+  const note = await withDatabaseRetry(
+    () =>
+      prisma.revisionNote.upsert({
+        where: {
+          userId_questionId: {
+            userId,
+            questionId,
           },
         },
-      },
-    },
-  });
+        create: {
+          userId,
+          questionId,
+          userNote: userNote?.trim() || null,
+          tags: tags.map((t) => t.trim()).filter(Boolean),
+          subject: question.subject,
+          chapter: question.chapter,
+          topic: question.topic,
+          conceptKey,
+          keyTakeaway: derivedTakeaway,
+        },
+        update: {
+          ...(userNote !== undefined ? { userNote: userNote?.trim() || null } : {}),
+          ...(tags !== undefined ? { tags: tags.map((t) => t.trim()).filter(Boolean) } : {}),
+          ...(keyTakeaway !== undefined ? { keyTakeaway: derivedTakeaway } : {}),
+        },
+        include: {
+          question: {
+            include: {
+              options: {
+                orderBy: { position: 'asc' },
+              },
+            },
+          },
+        },
+      }),
+    { operationName: 'save revision note' }
+  );
 
   return formatEnrichedNote(note);
 }

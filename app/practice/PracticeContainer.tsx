@@ -36,6 +36,7 @@ import {
   Trash2,
   Bookmark,
   Target,
+  AlertCircle,
 } from 'lucide-react';
 import { MathRenderer } from '@/components/ui/MathRenderer';
 import { SaveNoteModal } from '@/components/notes/SaveNoteModal';
@@ -912,14 +913,29 @@ export function PracticeContainer({
 
         {error && (
           <div className="p-3 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center justify-between">
-            <span>{error}</span>
-            <button
-              type="button"
-              onClick={() => setError(null)}
-              className="text-red-300 hover:underline cursor-pointer"
-            >
-              Dismiss
-            </button>
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              {selectedOption && !answerResult && (
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => handleSubmitAnswer()}
+                  className="text-red-300 underline hover:text-white cursor-pointer font-medium"
+                >
+                  Retry
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setError(null)}
+                className="text-zinc-400 hover:text-white cursor-pointer"
+              >
+                Dismiss
+              </button>
+            </div>
           </div>
         )}
 
@@ -1123,6 +1139,8 @@ export function PracticeContainer({
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     <span>Checking...</span>
                   </>
+                ) : error ? (
+                  <span>Retry Submission</span>
                 ) : (
                   <span>Submit Answer</span>
                 )}

@@ -19,6 +19,7 @@ import {
   Loader2,
   HelpCircle,
   Check,
+  AlertCircle,
 } from 'lucide-react';
 import { OptionLabel, QuestionSubject } from '@prisma/client';
 
@@ -99,6 +100,8 @@ export function RevisionDetailModal({
   const [detailData, setDetailData] = useState<DetailData | null>(null);
   const [userReflection, setUserReflection] = useState('');
   const [actionSuccessMessage, setActionSuccessMessage] = useState<string | null>(null);
+  const [actionErrorMessage, setActionErrorMessage] = useState<string | null>(null);
+  const [lastFailedStatus, setLastFailedStatus] = useState<RevisionStatus | null>(null);
 
   // Fetch full details when opened
   useEffect(() => {
@@ -158,6 +161,7 @@ export function RevisionDetailModal({
   const handleMarkReview = async (status: RevisionStatus) => {
     setSubmitting(true);
     setActionSuccessMessage(null);
+    setActionErrorMessage(null);
 
     try {
       const res = await markConceptReviewedAction({
@@ -168,6 +172,8 @@ export function RevisionDetailModal({
       });
 
       if (res.success && res.data) {
+        setActionErrorMessage(null);
+        setLastFailedStatus(null);
         const msg =
           status === RevisionStatus.REVIEWED
             ? 'Marked as reviewed! Next spaced checkup scheduled.'
@@ -187,9 +193,14 @@ export function RevisionDetailModal({
         setTimeout(() => {
           onClose();
         }, 1200);
+      } else {
+        setActionErrorMessage(res.error || 'Failed to update revision status. Please try again.');
+        setLastFailedStatus(status);
       }
     } catch (err) {
       console.error('Failed to update revision status', err);
+      setActionErrorMessage('Network error occurred. Please try again.');
+      setLastFailedStatus(status);
     } finally {
       setSubmitting(false);
     }
@@ -545,6 +556,25 @@ export function RevisionDetailModal({
           <div className="px-5 py-2.5 bg-emerald-500/15 border-t border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center gap-2">
             <Check className="w-4 h-4 text-emerald-400" />
             <span>{actionSuccessMessage}</span>
+          </div>
+        )}
+
+        {actionErrorMessage && (
+          <div className="px-5 py-2.5 bg-red-500/15 border-t border-red-500/30 text-red-300 text-xs font-semibold flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+              <span>{actionErrorMessage}</span>
+            </div>
+            {lastFailedStatus && (
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => handleMarkReview(lastFailedStatus)}
+                className="text-red-200 underline hover:text-white cursor-pointer font-medium ml-3 shrink-0"
+              >
+                Retry
+              </button>
+            )}
           </div>
         )}
 

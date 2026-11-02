@@ -1,6 +1,7 @@
 import 'server-only';
 import React from 'react';
 import { requireAuthenticatedUser } from '@/lib/server/auth';
+import { isTransientDatabaseError, DatabaseUnavailableError } from '@/lib/server/db';
 import { getUserRevisionNotes, getNotesSummary } from '@/lib/server/notes/service';
 import { NotesClient } from './NotesClient';
 import { AppSidebar } from '@/components/dashboard/AppSidebar';
@@ -17,6 +18,9 @@ export default async function NotesPage() {
   try {
     authCtx = await requireAuthenticatedUser();
   } catch (err: unknown) {
+    if (err instanceof DatabaseUnavailableError || isTransientDatabaseError(err)) {
+      throw err; // Let Next.js Error Boundary show "Try Again" without falsely logging user out
+    }
     if (err instanceof Error && err.message.includes('ONBOARDING_REQUIRED')) {
       redirect('/onboarding');
     }

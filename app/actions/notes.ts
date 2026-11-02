@@ -15,16 +15,14 @@ import {
   UpdateNoteInput,
 } from '@/lib/server/notes/service';
 import { QuestionSubject } from '@prisma/client';
+import { toServerActionError } from '@/lib/server/db/resilience';
 
 export interface ActionResponse<T> {
   success: boolean;
   data?: T;
   error?: string;
-}
-
-function getErrorMessage(err: unknown, fallback: string): string {
-  if (err instanceof Error) return err.message;
-  return fallback;
+  code?: string;
+  retryable?: boolean;
 }
 
 /**
@@ -35,13 +33,13 @@ export async function saveNoteAction(
 ): Promise<ActionResponse<EnrichedRevisionNote>> {
   try {
     const authCtx = await requireAuthenticatedUser();
-    if (!input.questionId || typeof input.questionId !== 'string') {
+    if (!input.questionId || typeof input.questionId !== 'string' || !input.questionId.trim()) {
       return { success: false, error: 'Invalid question ID' };
     }
 
     const note = await saveRevisionNote({
       userId: authCtx.profile.id,
-      questionId: input.questionId,
+      questionId: input.questionId.trim(),
       userNote: input.userNote,
       tags: input.tags,
       keyTakeaway: input.keyTakeaway,
@@ -49,7 +47,7 @@ export async function saveNoteAction(
 
     return { success: true, data: note };
   } catch (err: unknown) {
-    return { success: false, error: getErrorMessage(err, 'Failed to save note') };
+    return toServerActionError(err, 'Failed to save note');
   }
 }
 
@@ -69,7 +67,7 @@ export async function getUserNotesAction(filters?: {
     const notes = await getUserRevisionNotes(authCtx.profile.id, filters);
     return { success: true, data: notes };
   } catch (err: unknown) {
-    return { success: false, error: getErrorMessage(err, 'Failed to retrieve notes') };
+    return toServerActionError(err, 'Failed to retrieve notes');
   }
 }
 
@@ -81,10 +79,13 @@ export async function getNoteByIdAction(
 ): Promise<ActionResponse<EnrichedRevisionNote | null>> {
   try {
     const authCtx = await requireAuthenticatedUser();
-    const note = await getRevisionNoteById(authCtx.profile.id, noteId);
+    if (!noteId || typeof noteId !== 'string' || !noteId.trim()) {
+      return { success: false, error: 'Invalid note ID' };
+    }
+    const note = await getRevisionNoteById(authCtx.profile.id, noteId.trim());
     return { success: true, data: note };
   } catch (err: unknown) {
-    return { success: false, error: getErrorMessage(err, 'Failed to retrieve note') };
+    return toServerActionError(err, 'Failed to retrieve note');
   }
 }
 
@@ -97,10 +98,13 @@ export async function updateNoteAction(
 ): Promise<ActionResponse<EnrichedRevisionNote>> {
   try {
     const authCtx = await requireAuthenticatedUser();
-    const note = await updateRevisionNote(authCtx.profile.id, noteId, updates);
+    if (!noteId || typeof noteId !== 'string' || !noteId.trim()) {
+      return { success: false, error: 'Invalid note ID' };
+    }
+    const note = await updateRevisionNote(authCtx.profile.id, noteId.trim(), updates);
     return { success: true, data: note };
   } catch (err: unknown) {
-    return { success: false, error: getErrorMessage(err, 'Failed to update note') };
+    return toServerActionError(err, 'Failed to update note');
   }
 }
 
@@ -112,10 +116,13 @@ export async function deleteNoteAction(
 ): Promise<ActionResponse<{ deleted: boolean }>> {
   try {
     const authCtx = await requireAuthenticatedUser();
-    await deleteRevisionNote(authCtx.profile.id, noteId);
+    if (!noteId || typeof noteId !== 'string' || !noteId.trim()) {
+      return { success: false, error: 'Invalid note ID' };
+    }
+    await deleteRevisionNote(authCtx.profile.id, noteId.trim());
     return { success: true, data: { deleted: true } };
   } catch (err: unknown) {
-    return { success: false, error: getErrorMessage(err, 'Failed to delete note') };
+    return toServerActionError(err, 'Failed to delete note');
   }
 }
 
@@ -128,7 +135,7 @@ export async function getSavedQuestionIdsAction(): Promise<ActionResponse<string
     const ids = await getSavedQuestionIdsForUser(authCtx.profile.id);
     return { success: true, data: ids };
   } catch (err: unknown) {
-    return { success: false, error: getErrorMessage(err, 'Failed to get saved questions') };
+    return toServerActionError(err, 'Failed to get saved questions');
   }
 }
 
@@ -141,6 +148,6 @@ export async function getNotesSummaryAction(): Promise<ActionResponse<RevisionNo
     const summary = await getNotesSummary(authCtx.profile.id);
     return { success: true, data: summary };
   } catch (err: unknown) {
-    return { success: false, error: getErrorMessage(err, 'Failed to get notes summary') };
+    return toServerActionError(err, 'Failed to get notes summary');
   }
 }

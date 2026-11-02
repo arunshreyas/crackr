@@ -131,9 +131,19 @@ export function SettingsClient({ initialProfile }: SettingsClientProps) {
           )}
 
           {errorMessage && (
-            <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
-              <AlertCircle className="w-4 h-4" />
-              {errorMessage}
+            <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-semibold flex items-center justify-between animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{errorMessage}</span>
+              </div>
+              <button
+                type="button"
+                onClick={(e) => handleSave(e)}
+                disabled={saving}
+                className="underline hover:text-white cursor-pointer ml-3 shrink-0"
+              >
+                Retry
+              </button>
             </div>
           )}
 
